@@ -186,7 +186,7 @@ export default function AppPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Shield className="w-6 h-6 text-primary" />
-            <span className="text-lg font-serif font-bold">Green Claims Validator</span>
+            <span className="text-lg font-serif font-semibold">Green Claims Validator</span>
           </Link>
           <div className="flex items-center gap-4">
             <Button
@@ -216,7 +216,7 @@ export default function AppPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Scan History</h2>
+              <h2 className="mb-0">Scan History</h2>
               <button
                 onClick={() => setShowHistory(false)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
@@ -299,7 +299,7 @@ export default function AppPage() {
           <div className="space-y-4">
             <Card variant="elevated">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-serif font-bold">Input Text</h2>
+                <h2 className="mb-4">Input Text</h2>
                 <div className="text-sm text-gray-500">
                   {inputText.length} characters
                 </div>
@@ -343,7 +343,7 @@ export default function AppPage() {
             {/* Highlighted Text Preview */}
             {highlightedText && (
               <Card variant="outlined">
-                <h3 className="text-lg font-semibold mb-3">Highlighted Text</h3>
+                <h3 className="mb-4">Highlighted Text</h3>
                 <div
                   className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg max-h-64 overflow-y-auto font-mono text-sm"
                   dangerouslySetInnerHTML={{ __html: highlightedText }}
@@ -387,7 +387,7 @@ export default function AppPage() {
                 </div>
 
                 <Card variant="elevated">
-                  <h3 className="text-lg font-semibold mb-4">
+                  <h3 className="mb-6">
                     Flagged Terms ({scanResult.findings.length})
                   </h3>
                   {scanResult.findings.length === 0 ? (
@@ -412,7 +412,7 @@ export default function AppPage() {
               <Card variant="elevated" className="h-full flex items-center justify-center min-h-[400px]">
                 <div className="text-center text-gray-500">
                   <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                  <p className="text-lg font-semibold mb-2">No scan results yet</p>
+                  <p className="text-lg font-medium mb-3">No scan results yet</p>
                   <p className="text-sm">
                     Enter your marketing text on the left to start scanning
                   </p>

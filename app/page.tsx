@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { DarkModeToggle } from "@/components/ui/DarkModeToggle";
 import { scanText } from "@/lib/scanner-logic";
-import { Shield, CheckCircle, AlertTriangle, TrendingUp, Users, FileText, Zap, ArrowRight, ChevronDown } from "lucide-react";
+import { Shield, CheckCircle, AlertTriangle, TrendingUp, Users, FileText, Zap, ArrowRight, ChevronDown, Euro, XCircle, Clipboard, Search, BarChart3, ShieldCheck, Leaf, Menu, X, Twitter, Linkedin, Github, Mail } from "lucide-react";
 import Link from "next/link";
 
 export default function LandingPage() {
@@ -13,6 +13,9 @@ export default function LandingPage() {
   const [demoResult, setDemoResult] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [showFAQ, setShowFAQ] = useState<number | null>(null);
+  const [isYearly, setIsYearly] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const handleDemoScan = () => {
     if (!demoText.trim()) return;
@@ -30,7 +33,25 @@ export default function LandingPage() {
     if (demoSection) {
       demoSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+    setIsMobileMenuOpen(false);
   };
+
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    setIsMobileMenuOpen(false);
+  };
+
+  // Handle scroll for sticky header
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const exampleTexts = [
     "Our product is 100% climate neutral and completely sustainable.",
@@ -64,131 +85,375 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-gray-900">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="w-8 h-8 text-primary" />
-            <span className="text-xl font-serif font-bold">Green Claims Validator</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/app">
-              <Button variant="outline" size="sm">Go to App</Button>
+      <header
+        className={`sticky top-0 z-50 transition-all duration-300 ${
+          isScrolled
+            ? "bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg shadow-sm"
+            : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md"
+        } border-b border-gray-200 dark:border-gray-800`}
+      >
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <Leaf className="w-7 h-7 text-primary" />
+              <span className="text-xl font-serif font-semibold text-gray-900 dark:text-white">
+                Green Claims Validator
+              </span>
             </Link>
-            <DarkModeToggle />
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-8">
+              <button
+                onClick={() => scrollToSection("features-section")}
+                className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
+              >
+                Features
+              </button>
+              <button
+                onClick={() => scrollToSection("pricing-section")}
+                className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
+              >
+                Pricing
+              </button>
+              <a
+                href="#"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
+              >
+                Docs
+              </a>
+              <a
+                href="#"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
+              >
+                Blog
+              </a>
+            </nav>
+
+            {/* Desktop CTA */}
+            <div className="hidden md:flex items-center gap-4">
+              <button className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">
+                Sign In
+              </button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={scrollToDemo}
+                className="bg-primary hover:bg-primary-dark"
+              >
+                Try Free
+              </Button>
+              <DarkModeToggle />
+            </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center gap-3">
+              <DarkModeToggle />
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
+                aria-label="Toggle menu"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-6 h-6" />
+                ) : (
+                  <Menu className="w-6 h-6" />
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Mobile Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mt-4 pb-4 border-t border-gray-200 dark:border-gray-800 pt-4 animate-slide-up">
+              <nav className="flex flex-col gap-4">
+                <button
+                  onClick={() => scrollToSection("features-section")}
+                  className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
+                >
+                  Features
+                </button>
+                <button
+                  onClick={() => scrollToSection("pricing-section")}
+                  className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
+                >
+                  Pricing
+                </button>
+                <a
+                  href="#"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
+                >
+                  Docs
+                </a>
+                <a
+                  href="#"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
+                >
+                  Blog
+                </a>
+                <div className="flex flex-col gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
+                  <button className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2">
+                    Sign In
+                  </button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={scrollToDemo}
+                    className="w-full bg-primary hover:bg-primary-dark"
+                  >
+                    Try Free
+                  </Button>
+                </div>
+              </nav>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Hero Section */}
       <section className="gradient-hero text-white py-24 md:py-40 relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl animate-pulse-slow"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-white rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: "1s" }}></div>
-        </div>
+        {/* Subtle grid pattern overlay is handled in CSS via ::before */}
         
         <div className="container mx-auto px-4 text-center relative z-10">
-          <div className="fade-in-up">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold mb-6 text-balance leading-tight">
-              Don't Get Fined for Greenwashing
-            </h1>
-          </div>
-          
-          <div className="fade-in-up-delay-1">
-            <p className="text-xl md:text-2xl lg:text-3xl mb-10 text-white/95 max-w-4xl mx-auto text-balance leading-relaxed font-light">
-              Validate your marketing claims against EU regulations. 
-              <span className="font-semibold text-white"> €40,000+ fines start September 2026.</span>
-            </p>
-          </div>
-          
-          <div className="fade-in-up-delay-2 flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-            <button
-              onClick={scrollToDemo}
-              className="group relative px-8 py-4 bg-accent hover:bg-accent-dark text-white font-semibold text-lg rounded-xl shadow-2xl hover:shadow-accent/50 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                Try Free Scanner
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-accent to-accent-light rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </button>
-            
-            <Link href="/app">
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="w-full sm:w-auto bg-white/10 border-2 border-white/30 text-white hover:bg-white/20 hover:border-white/50 backdrop-blur-sm px-8 py-4 text-lg font-semibold"
-              >
-                Go to Full App
-              </Button>
-            </Link>
-          </div>
-          
-          <div className="fade-in-up-delay-2 flex items-center justify-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-6 py-3 w-fit mx-auto">
-            <CheckCircle className="w-5 h-5 text-white" />
-            <span className="text-sm md:text-base font-medium">EU Directive 2024/825 Compliant</span>
+          <div className="hero-content-box max-w-5xl mx-auto">
+            <div className="rounded-[22px] p-8 md:p-12 lg:p-16">
+              <div className="fade-in-up">
+                <h1 className="mb-8 md:mb-10 lg:mb-12 text-balance text-white drop-shadow-lg">
+                  Don't Get Fined for Greenwashing
+                </h1>
+              </div>
+              
+              <div className="fade-in-up-delay-1">
+                <p className="text-hero mb-12 md:mb-14 lg:mb-16 text-white/95 max-w-4xl mx-auto text-balance">
+                  Validate your marketing claims against EU regulations. 
+                  <span className="font-semibold text-white"> €40,000+ fines start September 2026.</span>
+                </p>
+              </div>
+              
+              <div className="fade-in-up-delay-2 flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+                <button
+                  onClick={scrollToDemo}
+                  className="cta-button-glow group relative px-8 py-4 bg-accent hover:bg-accent-dark text-white font-semibold text-lg rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-0.5"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    Try Free Scanner
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+                  </span>
+                </button>
+                
+                <Link href="/app">
+                  <Button 
+                    variant="outline" 
+                    size="lg" 
+                    className="w-full sm:w-auto bg-white/10 border-2 border-white/30 text-white hover:bg-white/20 hover:border-white/50 backdrop-blur-sm px-8 py-4 text-lg font-semibold transition-all duration-300"
+                  >
+                    Go to Full App
+                  </Button>
+                </Link>
+              </div>
+              
+              <div className="fade-in-up-delay-3 flex items-center justify-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-6 py-3 w-fit mx-auto">
+                <CheckCircle className="w-5 h-5 text-white" />
+                <span className="text-sm md:text-base font-medium">EU Directive 2024/825 Compliant</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Problem Section */}
-      <section className="py-16 bg-white dark:bg-gray-800">
+      <section className="py-20 md:py-24 bg-white dark:bg-gray-800">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-center mb-12">
-            The Greenwashing Problem
+          <h2 className="text-center mb-16 md:mb-20">
+            The Greenwashing Crisis
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card variant="elevated" className="text-center">
-              <AlertTriangle className="w-12 h-12 text-accent mx-auto mb-4" />
-              <div className="text-4xl font-bold text-primary mb-2">53%</div>
-              <p className="text-gray-600 dark:text-gray-400">
-                of environmental claims are misleading (EU Study)
-              </p>
-            </Card>
-            <Card variant="elevated" className="text-center">
-              <TrendingUp className="w-12 h-12 text-danger mx-auto mb-4" />
-              <div className="text-4xl font-bold text-primary mb-2">€40,000+</div>
-              <p className="text-gray-600 dark:text-gray-400">
-                average fine for greenwashing violations
-              </p>
-            </Card>
-            <Card variant="elevated" className="text-center">
-              <FileText className="w-12 h-12 text-success mx-auto mb-4" />
-              <div className="text-4xl font-bold text-primary mb-2">260+</div>
-              <p className="text-gray-600 dark:text-gray-400">
-                banned terms and phrases to watch
-              </p>
-            </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto">
+            {/* Statistic 1 */}
+            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-gray-200 dark:hover:border-gray-600">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-red-50/50 to-transparent dark:from-red-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+              <div className="relative">
+                <AlertTriangle className="w-10 h-10 text-danger mx-auto mb-6 opacity-80" />
+                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4 font-serif">53%</div>
+                <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
+                  of environmental claims are misleading
+                  <span className="block mt-2 text-sm text-gray-500 dark:text-gray-400 font-medium">
+                    (EU Study)
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Statistic 2 */}
+            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-gray-200 dark:hover:border-gray-600">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+              <div className="relative">
+                <Euro className="w-10 h-10 text-accent mx-auto mb-6 opacity-80" />
+                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4 font-serif">€40,000+</div>
+                <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
+                  average fine per violation
+                </p>
+              </div>
+            </div>
+
+            {/* Statistic 3 */}
+            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-gray-200 dark:hover:border-gray-600">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent dark:from-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+              <div className="relative">
+                <XCircle className="w-10 h-10 text-primary mx-auto mb-6 opacity-80" />
+                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4 font-serif">260+</div>
+                <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
+                  banned terms and phrases
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-16 bg-gray-50 dark:bg-gray-900">
+      {/* How It Works / Features */}
+      <section id="features-section" className="py-20 md:py-24 bg-gray-50 dark:bg-gray-900 scroll-mt-20">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-center mb-12">
+          <h2 className="text-center mb-16 md:mb-20">
             How It Works
           </h2>
-          <div className="grid md:grid-cols-4 gap-8 max-w-5xl mx-auto">
-            {[
-              { step: "1", title: "Paste Text", icon: FileText },
-              { step: "2", title: "AI Scans", icon: Zap },
-              { step: "3", title: "Get Results", icon: CheckCircle },
-              { step: "4", title: "Export Report", icon: Shield },
-            ].map((item, idx) => (
-              <div key={idx} className="text-center">
-                <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                  {item.step}
-                </div>
-                <h3 className="font-semibold mb-2">{item.title}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {idx === 0 && "Paste your marketing text"}
-                  {idx === 1 && "Scans for 260+ risky terms"}
-                  {idx === 2 && "Instant results with severity levels"}
-                  {idx === 3 && "Download compliance report"}
-                </p>
+          
+          {/* Timeline - Desktop Horizontal, Mobile Vertical */}
+          <div className="max-w-6xl mx-auto">
+            {/* Desktop Timeline */}
+            <div className="hidden md:block relative">
+              {/* Connecting Line */}
+              <div className="absolute top-12 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-primary/50 to-primary">
+                <div className="absolute inset-0 bg-primary/20"></div>
               </div>
-            ))}
+              
+              <div className="grid grid-cols-4 gap-6 relative">
+                {[
+                  {
+                    icon: Clipboard,
+                    title: "Paste Your Text",
+                    description: "Copy your marketing content into our scanner",
+                    emoji: "📝"
+                  },
+                  {
+                    icon: Search,
+                    title: "AI Analysis",
+                    description: "Our AI scans for 260+ risky terms in seconds",
+                    emoji: "🔍"
+                  },
+                  {
+                    icon: BarChart3,
+                    title: "Get Results",
+                    description: "See risk level and flagged terms with explanations",
+                    emoji: "📊"
+                  },
+                  {
+                    icon: ShieldCheck,
+                    title: "Stay Compliant",
+                    description: "Download PDF report or get legal review",
+                    emoji: "✅"
+                  }
+                ].map((step, idx) => (
+                  <div
+                    key={idx}
+                    className="relative animate-fade-in-left"
+                    style={{ animationDelay: `${idx * 0.15}s` }}
+                  >
+                    {/* Step Card */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+                      {/* Step Number Circle */}
+                      <div className="relative mb-6">
+                        <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center border-2 border-primary">
+                          <step.icon className="w-10 h-10 text-primary" />
+                        </div>
+                        {/* Step Number Badge */}
+                        <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                          {idx + 1}
+                        </div>
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="text-center">
+                        <div className="text-3xl mb-3">{step.emoji}</div>
+                        <h3 className="font-semibold text-lg mb-3 text-gray-900 dark:text-white">
+                          {step.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                          {step.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile Timeline - Vertical */}
+            <div className="md:hidden space-y-8">
+              {[
+                {
+                  icon: Clipboard,
+                  title: "Paste Your Text",
+                  description: "Copy your marketing content into our scanner",
+                  emoji: "📝"
+                },
+                {
+                  icon: Search,
+                  title: "AI Analysis",
+                  description: "Our AI scans for 260+ risky terms in seconds",
+                  emoji: "🔍"
+                },
+                {
+                  icon: BarChart3,
+                  title: "Get Results",
+                  description: "See risk level and flagged terms with explanations",
+                  emoji: "📊"
+                },
+                {
+                  icon: ShieldCheck,
+                  title: "Stay Compliant",
+                  description: "Download PDF report or get legal review",
+                  emoji: "✅"
+                }
+              ].map((step, idx) => (
+                <div
+                  key={idx}
+                  className="relative animate-fade-in-left"
+                  style={{ animationDelay: `${idx * 0.15}s` }}
+                >
+                  {/* Connecting Line (Mobile) */}
+                  {idx < 3 && (
+                    <div className="absolute left-6 top-20 bottom-0 w-0.5 bg-gradient-to-b from-primary to-primary/30"></div>
+                  )}
+                  
+                  {/* Step Card */}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <div className="flex items-start gap-4">
+                      {/* Step Number Circle */}
+                      <div className="relative flex-shrink-0">
+                        <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center border-2 border-primary">
+                          <step.icon className="w-8 h-8 text-primary" />
+                        </div>
+                        {/* Step Number Badge */}
+                        <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">
+                          {idx + 1}
+                        </div>
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="flex-1 pt-1">
+                        <div className="text-2xl mb-2">{step.emoji}</div>
+                        <h3 className="font-semibold text-lg mb-2 text-gray-900 dark:text-white">
+                          {step.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                          {step.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -196,7 +461,7 @@ export default function LandingPage() {
       {/* Interactive Demo */}
       <section id="demo-section" className="py-16 bg-white dark:bg-gray-800 scroll-mt-20">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-center mb-12">
+          <h2 className="text-center mb-12 md:mb-16">
             Try It Free
           </h2>
           <div className="max-w-4xl mx-auto">
@@ -298,97 +563,195 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section className="py-16 bg-gray-50 dark:bg-gray-900">
+      <section id="pricing-section" className="py-20 md:py-24 bg-gray-50 dark:bg-gray-900 scroll-mt-20">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-center mb-12">
+          <h2 className="text-center mb-12 md:mb-16">
             Pricing
           </h2>
-          <div className="grid md:grid-cols-4 gap-6 max-w-6xl mx-auto">
+          
+          {/* Billing Toggle */}
+          <div className="flex items-center justify-center gap-4 mb-12">
+            <span className={`text-sm font-medium ${!isYearly ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
+              Monthly
+            </span>
+            <button
+              onClick={() => setIsYearly(!isYearly)}
+              className="relative w-14 h-8 bg-gray-200 dark:bg-gray-700 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            >
+              <div
+                className={`absolute top-1 left-1 w-6 h-6 bg-white dark:bg-gray-300 rounded-full shadow-md transform transition-transform duration-300 ${
+                  isYearly ? "translate-x-6" : "translate-x-0"
+                }`}
+              />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-medium ${isYearly ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
+                Yearly
+              </span>
+              <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">
+                Save 20%
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {[
               {
-                name: "Free",
-                price: "€0",
+                name: "FREE",
+                monthlyPrice: 0,
+                yearlyPrice: 0,
                 features: [
-                  "3 scans per month",
-                  "500 characters per scan",
-                  "Basic risk assessment",
+                  "3 scans/month",
+                  "500 characters",
+                  "Basic risk report",
                 ],
-                cta: "Sign Up Free",
+                cta: "Start Free",
                 popular: false,
+                highlight: false,
               },
               {
-                name: "Starter",
-                price: "€29",
+                name: "STARTER",
+                monthlyPrice: 29,
+                yearlyPrice: 23,
                 period: "/month",
                 features: [
-                  "100 scans per month",
+                  "100 scans/month",
                   "Unlimited characters",
-                  "Detailed compliance reports",
+                  "PDF reports",
                   "Email support",
                 ],
-                cta: "Start 14-day Trial",
-                popular: true,
+                cta: "Start Trial",
+                trialDays: 14,
+                popular: false,
+                highlight: false,
               },
               {
-                name: "Professional",
-                price: "€99",
+                name: "PRO",
+                monthlyPrice: 99,
+                yearlyPrice: 79,
                 period: "/month",
                 features: [
                   "Unlimited scans",
                   "API access",
-                  "Team collaboration (5 users)",
+                  "Team (5 users)",
                   "Priority support",
-                  "Legal review option (+€199/review)",
                 ],
-                cta: "Start 14-day Trial",
-                popular: false,
+                cta: "Start Trial",
+                trialDays: 14,
+                popular: true,
+                highlight: true,
               },
               {
-                name: "Enterprise",
+                name: "ENTERPRISE",
                 price: "Custom",
                 features: [
                   "Everything in Pro",
-                  "Dedicated account manager",
-                  "Custom integrations",
-                  "SLA guarantee",
+                  "Legal review",
+                  "White label",
+                  "SLA",
                 ],
                 cta: "Contact Sales",
                 popular: false,
+                highlight: false,
               },
-            ].map((plan, idx) => (
-              <Card
-                key={idx}
-                variant={plan.popular ? "elevated" : "outlined"}
-                className={`relative ${plan.popular ? "border-2 border-primary scale-105" : ""}`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-white text-xs font-semibold rounded-full">
-                    Most Popular
-                  </div>
-                )}
-                <div className="text-center mb-6">
-                  <h3 className="text-xl font-serif font-bold mb-2">{plan.name}</h3>
-                  <div className="text-3xl font-bold">
-                    {plan.price}
-                    {plan.period && <span className="text-lg">{plan.period}</span>}
+            ].map((plan, idx) => {
+              const displayPrice = plan.price === "Custom" 
+                ? "Custom" 
+                : isYearly 
+                  ? `€${plan.yearlyPrice}` 
+                  : `€${plan.monthlyPrice}`;
+              
+              const originalPrice = plan.price === "Custom" 
+                ? null 
+                : isYearly && plan.monthlyPrice 
+                  ? plan.monthlyPrice 
+                  : null;
+
+              return (
+                <div
+                  key={idx}
+                  className={`group relative bg-white dark:bg-gray-800 rounded-xl border-2 transition-all duration-300 hover:scale-105 hover:shadow-xl ${
+                    plan.highlight
+                      ? "border-primary shadow-lg scale-105"
+                      : "border-gray-200 dark:border-gray-700 shadow-sm hover:border-primary/50"
+                  }`}
+                >
+                  {plan.highlight && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-white text-xs font-bold rounded-full shadow-md">
+                      MOST POPULAR
+                    </div>
+                  )}
+
+                  <div className="p-8">
+                    {/* Header */}
+                    <div className="text-center mb-8">
+                      <h3 className={`text-xl font-bold mb-4 ${plan.highlight ? "text-primary" : "text-gray-900 dark:text-white"}`}>
+                        {plan.name}
+                      </h3>
+                      <div className="mb-2">
+                        {plan.price === "Custom" ? (
+                          <div className="text-4xl font-bold text-gray-900 dark:text-white">
+                            {plan.price}
+                          </div>
+                        ) : (
+                          <div className="flex items-baseline justify-center gap-2">
+                            <span className="text-4xl font-bold text-gray-900 dark:text-white">
+                              {displayPrice}
+                            </span>
+                            {plan.period && (
+                              <span className="text-lg text-gray-500 dark:text-gray-400">
+                                {plan.period}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {originalPrice && (
+                          <div className="flex items-center justify-center gap-2 mt-2">
+                            <span className="text-lg text-gray-400 dark:text-gray-500 line-through">
+                              €{originalPrice}
+                            </span>
+                            <span className="text-sm text-primary font-semibold">
+                              Save {Math.round((1 - (plan.yearlyPrice! / plan.monthlyPrice!)) * 100)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Features */}
+                    <ul className="space-y-4 mb-8">
+                      {plan.features.map((feature, fIdx) => (
+                        <li key={fIdx} className="flex items-start gap-3">
+                          <CheckCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                            plan.highlight ? "text-primary" : "text-success"
+                          }`} />
+                          <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                            {feature}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* CTA Button */}
+                    <Button
+                      variant={plan.highlight ? "primary" : "outline"}
+                      className={`w-full ${
+                        plan.highlight 
+                          ? "bg-primary hover:bg-primary-dark" 
+                          : "border-2 hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {plan.cta}
+                      {plan.trialDays && (
+                        <span className="ml-2 text-xs opacity-80">
+                          ({plan.trialDays} days)
+                        </span>
+                      )}
+                    </Button>
                   </div>
                 </div>
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((feature, fIdx) => (
-                    <li key={fIdx} className="flex items-start gap-2 text-sm">
-                      <CheckCircle className="w-4 h-4 text-success mt-0.5 flex-shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  variant={plan.popular ? "primary" : "outline"}
-                  className="w-full"
-                >
-                  {plan.cta}
-                </Button>
-              </Card>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -396,7 +759,7 @@ export default function LandingPage() {
       {/* FAQ */}
       <section className="py-16 bg-white dark:bg-gray-800">
         <div className="container mx-auto px-4 max-w-3xl">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-center mb-12">
+          <h2 className="text-center mb-12 md:mb-16">
             Frequently Asked Questions
           </h2>
           <div className="space-y-4">
@@ -427,45 +790,191 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
+      <footer className="bg-gray-950 text-white">
+        <div className="container mx-auto px-4 py-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 mb-12">
+            {/* Product Column */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Shield className="w-6 h-6" />
-                <span className="font-serif font-bold">Green Claims Validator</span>
-              </div>
-              <p className="text-sm text-gray-400">
-                Made in Berlin 🇩🇪 for EU Compliance
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link href="/app" className="hover:text-white">Web App</Link></li>
-                <li><a href="#" className="hover:text-white">Pricing</a></li>
-                <li><a href="#" className="hover:text-white">API</a></li>
+              <h4 className="font-semibold text-base mb-6 text-white">Product</h4>
+              <ul className="space-y-4">
+                <li>
+                  <button
+                    onClick={() => scrollToSection("features-section")}
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group"
+                  >
+                    Features
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => scrollToSection("pricing-section")}
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group"
+                  >
+                    Pricing
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </button>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    API
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    Roadmap
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
               </ul>
             </div>
+
+            {/* Company Column */}
             <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white">About</a></li>
-                <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-white">Terms</a></li>
+              <h4 className="font-semibold text-base mb-6 text-white">Company</h4>
+              <ul className="space-y-4">
+                <li>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    About
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    Blog
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    Careers
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    Contact
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
               </ul>
             </div>
+
+            {/* Legal Column */}
             <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white">Contact</a></li>
-                <li><a href="#" className="hover:text-white">Documentation</a></li>
-                <li><a href="#" className="hover:text-white">Help Center</a></li>
+              <h4 className="font-semibold text-base mb-6 text-white">Legal</h4>
+              <ul className="space-y-4">
+                <li>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    Privacy
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    Terms
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    GDPR
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    Imprint
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Social Column */}
+            <div>
+              <h4 className="font-semibold text-base mb-6 text-white">Social</h4>
+              <ul className="space-y-4">
+                <li>
+                  <a
+                    href="#"
+                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    <Twitter className="w-4 h-4" />
+                    Twitter
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    <Linkedin className="w-4 h-4" />
+                    LinkedIn
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    <Github className="w-4 h-4" />
+                    GitHub
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-            © 2024 Green Claims Validator. All rights reserved.
+
+          {/* Bottom Copyright */}
+          <div className="border-t border-gray-800 pt-8 text-center">
+            <p className="text-sm text-gray-400">
+              © 2026 Green Claims Validator. Made in Cologne 🇩🇪
+            </p>
           </div>
         </div>
       </footer>
