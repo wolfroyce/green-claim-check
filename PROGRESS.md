@@ -1,4 +1,4 @@
-# 🚀 Green Claims Validator - Progress Tracker
+# 🚀 Green Claim Check - Progress Tracker
 
 **Last Updated:** January 2025  
 **Status:** MVP Complete - Ready for Enhancement Phase

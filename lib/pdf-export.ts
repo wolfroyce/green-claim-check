@@ -16,7 +16,7 @@ export function exportToPDF(scanResult: ScanResponse, originalText: string): voi
 
   // Title
   doc.setFontSize(20);
-  doc.setTextColor(13, 92, 61); // Primary green
+  doc.setTextColor(74, 107, 90); // Primary green (damped)
   doc.text("Green Claims Compliance Report", margin, yPos);
   yPos += 15;
 
@@ -158,7 +158,7 @@ export function exportToPDF(scanResult: ScanResponse, originalText: string): voi
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.text(
-      `Green Claims Validator - EU 2024/825 Compliance Tool`,
+      `Green Claim Check - EU 2024/825 Compliance Tool`,
       pageWidth / 2,
       pageHeight - 10,
       { align: "center" }

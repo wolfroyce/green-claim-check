@@ -1,4 +1,4 @@
-# Green Claims Validator
+# Green Claim Check
 
 A SaaS web application that scans marketing text for potentially illegal environmental claims under EU regulation 2024/825 (effective September 2026).
 

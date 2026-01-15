@@ -13,8 +13,8 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   const variants = {
     default: "bg-white dark:bg-gray-800",
-    elevated: "bg-white dark:bg-gray-800 shadow-lg",
-    outlined: "bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700",
+    elevated: "bg-white dark:bg-gray-800 shadow-sm",
+    outlined: "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
   };
 
   return (

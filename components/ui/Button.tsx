@@ -21,14 +21,14 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variants = {
     primary:
-      "bg-primary text-white hover:bg-primary-dark focus:ring-primary shadow-md hover:shadow-lg active:scale-95",
+      "bg-primary text-white hover:bg-primary-dark focus:ring-primary shadow-sm hover:shadow-md active:scale-95",
     secondary:
-      "bg-accent text-white hover:bg-accent-dark focus:ring-accent shadow-md hover:shadow-lg active:scale-95",
+      "bg-accent text-white hover:bg-accent-dark focus:ring-accent shadow-sm hover:shadow-md active:scale-95",
     outline:
-      "border-2 border-primary text-primary hover:bg-primary/10 focus:ring-primary",
+      "border border-primary/60 text-primary hover:bg-primary/5 focus:ring-primary",
     ghost: "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
     danger:
-      "bg-danger text-white hover:bg-danger-dark focus:ring-danger shadow-md hover:shadow-lg active:scale-95",
+      "bg-danger text-white hover:bg-danger-dark focus:ring-danger shadow-sm hover:shadow-md active:scale-95",
   };
 
   const sizes = {

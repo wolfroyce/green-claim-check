@@ -11,28 +11,27 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#0D5C3D",
-          light: "#10B981",
-          dark: "#064E3B",
+          DEFAULT: "#4A6B5A",
+          light: "#6B8E7A",
+          dark: "#3A5547",
         },
         accent: {
-          DEFAULT: "#F59E0B",
-          light: "#FCD34D",
-          dark: "#D97706",
+          DEFAULT: "#B8865B",
+          light: "#D4A574",
+          dark: "#9A6F4A",
         },
         danger: {
-          DEFAULT: "#EF4444",
-          light: "#FCA5A5",
-          dark: "#DC2626",
+          DEFAULT: "#C85A4F",
+          light: "#E07A6F",
+          dark: "#A84A3F",
         },
         success: {
-          DEFAULT: "#10B981",
-          light: "#6EE7B7",
-          dark: "#059669",
+          DEFAULT: "#5A7C6B",
+          light: "#7A9C8B",
+          dark: "#4A6C5B",
         },
       },
       fontFamily: {
-        serif: ['"Instrument Serif"', "serif"],
         sans: ['"Inter"', "sans-serif"],
         mono: ['"JetBrains Mono"', "monospace"],
       },

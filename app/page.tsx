@@ -4,11 +4,14 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { DarkModeToggle } from "@/components/ui/DarkModeToggle";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { scanText } from "@/lib/scanner-logic";
 import { Shield, CheckCircle, AlertTriangle, TrendingUp, Users, FileText, Zap, ArrowRight, ChevronDown, Euro, XCircle, Clipboard, Search, BarChart3, ShieldCheck, Leaf, Menu, X, Twitter, Linkedin, Github, Mail } from "lucide-react";
 import Link from "next/link";
 
 export default function LandingPage() {
+  const { t } = useLanguage();
   const [demoText, setDemoText] = useState("");
   const [demoResult, setDemoResult] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -59,28 +62,6 @@ export default function LandingPage() {
     "Made with 80% recycled materials (certified GRS Standard).",
   ];
 
-  const faqs = [
-    {
-      question: "What is the Green Claims Directive?",
-      answer: "The EU Green Claims Directive (2024/825) is a regulation that requires companies to substantiate all environmental claims in their marketing. It comes into effect in September 2026 and can result in fines of up to 4% of annual revenue for violations.",
-    },
-    {
-      question: "How accurate is the scanner?",
-      answer: "Our scanner checks against 260+ banned terms and phrases from the EU regulation. However, this tool is for guidance only and does not constitute legal advice. Always consult with legal experts for final compliance verification.",
-    },
-    {
-      question: "Can I use this for legal compliance?",
-      answer: "This tool helps identify potentially problematic claims, but it's not a substitute for legal review. We recommend consulting with compliance experts, especially for high-stakes marketing materials.",
-    },
-    {
-      question: "What happens after I'm flagged?",
-      answer: "Our tool provides specific alternative suggestions for each flagged term. You can review the suggestions, update your text, and re-scan to verify compliance.",
-    },
-    {
-      question: "Do you store my data?",
-      answer: "For free users, scans are processed client-side and not stored on our servers. For paid plans, we may store scan history for your convenience, but all data is encrypted and can be deleted upon request.",
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-gray-900">
@@ -97,8 +78,8 @@ export default function LandingPage() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Leaf className="w-7 h-7 text-primary" />
-              <span className="text-xl font-serif font-semibold text-gray-900 dark:text-white">
-                Green Claims Validator
+              <span className="text-xl font-semibold text-gray-900 dark:text-white">
+                Green Claim Check
               </span>
             </Link>
 
@@ -108,32 +89,32 @@ export default function LandingPage() {
                 onClick={() => scrollToSection("features-section")}
                 className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
               >
-                Features
+                {t.nav.features}
               </button>
               <button
                 onClick={() => scrollToSection("pricing-section")}
                 className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
               >
-                Pricing
+                {t.nav.pricing}
               </button>
               <a
                 href="#"
                 className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
               >
-                Docs
+                {t.nav.docs}
               </a>
               <a
                 href="#"
                 className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
               >
-                Blog
+                {t.nav.blog}
               </a>
             </nav>
 
             {/* Desktop CTA */}
             <div className="hidden md:flex items-center gap-4">
               <button className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">
-                Sign In
+                {t.nav.signIn}
               </button>
               <Button
                 variant="primary"
@@ -141,8 +122,9 @@ export default function LandingPage() {
                 onClick={scrollToDemo}
                 className="bg-primary hover:bg-primary-dark"
               >
-                Try Free
+                {t.nav.tryFree}
               </Button>
+              <LanguageToggle />
               <DarkModeToggle />
             </div>
 
@@ -171,29 +153,29 @@ export default function LandingPage() {
                   onClick={() => scrollToSection("features-section")}
                   className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
                 >
-                  Features
+                  {t.nav.features}
                 </button>
                 <button
                   onClick={() => scrollToSection("pricing-section")}
                   className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
                 >
-                  Pricing
+                  {t.nav.pricing}
                 </button>
                 <a
                   href="#"
                   className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
                 >
-                  Docs
+                  {t.nav.docs}
                 </a>
                 <a
                   href="#"
                   className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
                 >
-                  Blog
+                  {t.nav.blog}
                 </a>
                 <div className="flex flex-col gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
                   <button className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2">
-                    Sign In
+                    {t.nav.signIn}
                   </button>
                   <Button
                     variant="primary"
@@ -201,8 +183,11 @@ export default function LandingPage() {
                     onClick={scrollToDemo}
                     className="w-full bg-primary hover:bg-primary-dark"
                   >
-                    Try Free
+                    {t.nav.tryFree}
                   </Button>
+                  <div className="pt-2">
+                    <LanguageToggle />
+                  </div>
                 </div>
               </nav>
             </div>
@@ -219,24 +204,23 @@ export default function LandingPage() {
             <div className="rounded-[22px] p-8 md:p-12 lg:p-16">
               <div className="fade-in-up">
                 <h1 className="mb-8 md:mb-10 lg:mb-12 text-balance text-white drop-shadow-lg">
-                  Don't Get Fined for Greenwashing
+                  {t.hero.headline}
                 </h1>
               </div>
               
               <div className="fade-in-up-delay-1">
                 <p className="text-hero mb-12 md:mb-14 lg:mb-16 text-white/95 max-w-4xl mx-auto text-balance">
-                  Validate your marketing claims against EU regulations. 
-                  <span className="font-semibold text-white"> €40,000+ fines start September 2026.</span>
+                  {t.hero.subheadline}
                 </p>
               </div>
               
               <div className="fade-in-up-delay-2 flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
                 <button
                   onClick={scrollToDemo}
-                  className="cta-button-glow group relative px-8 py-4 bg-accent hover:bg-accent-dark text-white font-semibold text-lg rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-0.5"
+                  className="cta-button-glow group relative px-8 py-4 bg-accent hover:bg-accent-dark text-white font-semibold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-0.5"
                 >
                   <span className="relative z-10 flex items-center gap-2">
-                    Try Free Scanner
+                    {t.hero.cta}
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
                   </span>
                 </button>
@@ -247,14 +231,14 @@ export default function LandingPage() {
                     size="lg" 
                     className="w-full sm:w-auto bg-white/10 border-2 border-white/30 text-white hover:bg-white/20 hover:border-white/50 backdrop-blur-sm px-8 py-4 text-lg font-semibold transition-all duration-300"
                   >
-                    Go to Full App
+                    {t.nav.tryFree}
                   </Button>
                 </Link>
               </div>
               
               <div className="fade-in-up-delay-3 flex items-center justify-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-6 py-3 w-fit mx-auto">
                 <CheckCircle className="w-5 h-5 text-white" />
-                <span className="text-sm md:text-base font-medium">EU Directive 2024/825 Compliant</span>
+                <span className="text-sm md:text-base font-medium">{t.hero.trustBadge}</span>
               </div>
             </div>
           </div>
@@ -265,44 +249,44 @@ export default function LandingPage() {
       <section className="py-20 md:py-24 bg-white dark:bg-gray-800">
         <div className="container mx-auto px-4">
           <h2 className="text-center mb-16 md:mb-20">
-            The Greenwashing Crisis
+            {t.problem.title}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto">
             {/* Statistic 1 */}
-            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-gray-200 dark:hover:border-gray-600">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-red-50/50 to-transparent dark:from-red-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-gray-300 dark:hover:border-gray-600">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-red-50/30 to-transparent dark:from-red-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
               <div className="relative">
-                <AlertTriangle className="w-10 h-10 text-danger mx-auto mb-6 opacity-80" />
-                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4 font-serif">53%</div>
+                <AlertTriangle className="w-10 h-10 text-danger mx-auto mb-6 opacity-70" />
+                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4">{t.problem.stat1.value}</div>
                 <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
-                  of environmental claims are misleading
+                  {t.problem.stat1.description}
                   <span className="block mt-2 text-sm text-gray-500 dark:text-gray-400 font-medium">
-                    (EU Study)
+                    {t.problem.stat1.source}
                   </span>
                 </p>
               </div>
             </div>
 
             {/* Statistic 2 */}
-            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-gray-200 dark:hover:border-gray-600">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-gray-300 dark:hover:border-gray-600">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-50/30 to-transparent dark:from-amber-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
               <div className="relative">
-                <Euro className="w-10 h-10 text-accent mx-auto mb-6 opacity-80" />
-                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4 font-serif">€40,000+</div>
+                <Euro className="w-10 h-10 text-accent mx-auto mb-6 opacity-70" />
+                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4">{t.problem.stat2.value}</div>
                 <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
-                  average fine per violation
+                  {t.problem.stat2.description}
                 </p>
               </div>
             </div>
 
             {/* Statistic 3 */}
-            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-gray-200 dark:hover:border-gray-600">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent dark:from-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-gray-300 dark:hover:border-gray-600">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent dark:from-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
               <div className="relative">
-                <XCircle className="w-10 h-10 text-primary mx-auto mb-6 opacity-80" />
-                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4 font-serif">260+</div>
+                <XCircle className="w-10 h-10 text-primary mx-auto mb-6 opacity-70" />
+                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4">{t.problem.stat3.value}</div>
                 <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
-                  banned terms and phrases
+                  {t.problem.stat3.description}
                 </p>
               </div>
             </div>
@@ -314,7 +298,7 @@ export default function LandingPage() {
       <section id="features-section" className="py-20 md:py-24 bg-gray-50 dark:bg-gray-900 scroll-mt-20">
         <div className="container mx-auto px-4">
           <h2 className="text-center mb-16 md:mb-20">
-            How It Works
+            {t.howItWorks.title}
           </h2>
           
           {/* Timeline - Desktop Horizontal, Mobile Vertical */}
@@ -330,26 +314,26 @@ export default function LandingPage() {
                 {[
                   {
                     icon: Clipboard,
-                    title: "Paste Your Text",
-                    description: "Copy your marketing content into our scanner",
+                    title: t.howItWorks.step1.title,
+                    description: t.howItWorks.step1.description,
                     emoji: "📝"
                   },
                   {
                     icon: Search,
-                    title: "AI Analysis",
-                    description: "Our AI scans for 260+ risky terms in seconds",
+                    title: t.howItWorks.step2.title,
+                    description: t.howItWorks.step2.description,
                     emoji: "🔍"
                   },
                   {
                     icon: BarChart3,
-                    title: "Get Results",
-                    description: "See risk level and flagged terms with explanations",
+                    title: t.howItWorks.step3.title,
+                    description: t.howItWorks.step3.description,
                     emoji: "📊"
                   },
                   {
                     icon: ShieldCheck,
-                    title: "Stay Compliant",
-                    description: "Download PDF report or get legal review",
+                    title: t.howItWorks.step4.title,
+                    description: t.howItWorks.step4.description,
                     emoji: "✅"
                   }
                 ].map((step, idx) => (
@@ -392,26 +376,26 @@ export default function LandingPage() {
               {[
                 {
                   icon: Clipboard,
-                  title: "Paste Your Text",
-                  description: "Copy your marketing content into our scanner",
+                  title: t.howItWorks.step1.title,
+                  description: t.howItWorks.step1.description,
                   emoji: "📝"
                 },
                 {
                   icon: Search,
-                  title: "AI Analysis",
-                  description: "Our AI scans for 260+ risky terms in seconds",
+                  title: t.howItWorks.step2.title,
+                  description: t.howItWorks.step2.description,
                   emoji: "🔍"
                 },
                 {
                   icon: BarChart3,
-                  title: "Get Results",
-                  description: "See risk level and flagged terms with explanations",
+                  title: t.howItWorks.step3.title,
+                  description: t.howItWorks.step3.description,
                   emoji: "📊"
                 },
                 {
                   icon: ShieldCheck,
-                  title: "Stay Compliant",
-                  description: "Download PDF report or get legal review",
+                  title: t.howItWorks.step4.title,
+                  description: t.howItWorks.step4.description,
                   emoji: "✅"
                 }
               ].map((step, idx) => (
@@ -462,14 +446,14 @@ export default function LandingPage() {
       <section id="demo-section" className="py-16 bg-white dark:bg-gray-800 scroll-mt-20">
         <div className="container mx-auto px-4">
           <h2 className="text-center mb-12 md:mb-16">
-            Try It Free
+            {t.demo.title}
           </h2>
           <div className="max-w-4xl mx-auto">
             <Card variant="elevated">
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Enter your marketing text (500 char limit for demo)
+                    {t.demo.charLimit}
                   </label>
                   <textarea
                     value={demoText}
@@ -477,7 +461,7 @@ export default function LandingPage() {
                       const text = e.target.value.slice(0, 500);
                       setDemoText(text);
                     }}
-                    placeholder="Paste your marketing text here..."
+                    placeholder={t.demo.placeholder}
                     className="w-full h-32 p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
                   />
                   <div className="text-sm text-gray-500 mt-1 text-right">
@@ -491,7 +475,7 @@ export default function LandingPage() {
                       onClick={() => setDemoText(text.slice(0, 500))}
                       className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                     >
-                      Try: {text.slice(0, 30)}...
+                      {text.slice(0, 30)}...
                     </button>
                   ))}
                 </div>
@@ -501,7 +485,7 @@ export default function LandingPage() {
                   className="w-full"
                   disabled={!demoText.trim()}
                 >
-                  Scan Now
+                  {t.demo.scanNow}
                 </Button>
               </div>
             </Card>
@@ -510,7 +494,7 @@ export default function LandingPage() {
               <Card variant="elevated" className="mt-6 animate-slide-up">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-semibold">Results</h3>
+                    <h3 className="text-xl font-semibold">{t.demo.results}</h3>
                     <span
                       className={`text-lg font-bold ${
                         demoResult.score >= 70
@@ -520,26 +504,26 @@ export default function LandingPage() {
                           : "text-success"
                       }`}
                     >
-                      Risk: {demoResult.score}%
+                      {t.demo.risk}: {demoResult.score}%
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
-                      <span className="text-danger font-semibold">Critical: </span>
+                      <span className="text-danger font-semibold">{t.demo.critical}: </span>
                       {demoResult.criticalCount}
                     </div>
                     <div>
-                      <span className="text-accent font-semibold">Warnings: </span>
+                      <span className="text-accent font-semibold">{t.demo.warnings}: </span>
                       {demoResult.warningCount}
                     </div>
                     <div>
-                      <span className="text-success font-semibold">Minor: </span>
+                      <span className="text-success font-semibold">{t.demo.minor}: </span>
                       {demoResult.minorCount}
                     </div>
                   </div>
                   {demoResult.findings.length > 0 && (
                     <div className="space-y-2">
-                      <h4 className="font-semibold">Flagged Terms:</h4>
+                      <h4 className="font-semibold">{t.demo.flaggedTerms}:</h4>
                       {demoResult.findings.slice(0, 3).map((f: any, idx: number) => (
                         <div
                           key={idx}
@@ -552,7 +536,7 @@ export default function LandingPage() {
                   )}
                   <Link href="/app">
                     <Button variant="primary" className="w-full">
-                      Get Full Analysis <ArrowRight className="w-4 h-4 ml-2 inline" />
+                      {t.demo.getFullAnalysis} <ArrowRight className="w-4 h-4 ml-2 inline" />
                     </Button>
                   </Link>
                 </div>
@@ -566,13 +550,13 @@ export default function LandingPage() {
       <section id="pricing-section" className="py-20 md:py-24 bg-gray-50 dark:bg-gray-900 scroll-mt-20">
         <div className="container mx-auto px-4">
           <h2 className="text-center mb-12 md:mb-16">
-            Pricing
+            {t.pricing.title}
           </h2>
           
           {/* Billing Toggle */}
           <div className="flex items-center justify-center gap-4 mb-12">
             <span className={`text-sm font-medium ${!isYearly ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
-              Monthly
+              {t.pricing.monthly}
             </span>
             <button
               onClick={() => setIsYearly(!isYearly)}
@@ -586,10 +570,10 @@ export default function LandingPage() {
             </button>
             <div className="flex items-center gap-2">
               <span className={`text-sm font-medium ${isYearly ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
-                Yearly
+                {t.pricing.yearly}
               </span>
               <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">
-                Save 20%
+                {t.pricing.save}
               </span>
             </div>
           </div>
@@ -597,60 +581,42 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {[
               {
-                name: "FREE",
+                name: t.pricing.free.name,
                 monthlyPrice: 0,
                 yearlyPrice: 0,
-                features: [
-                  "3 scans/month",
-                  "500 characters",
-                  "Basic risk report",
-                ],
-                cta: "Start Free",
+                features: t.pricing.free.features,
+                cta: t.pricing.free.cta,
                 popular: false,
                 highlight: false,
               },
               {
-                name: "STARTER",
+                name: t.pricing.starter.name,
                 monthlyPrice: 29,
                 yearlyPrice: 23,
                 period: "/month",
-                features: [
-                  "100 scans/month",
-                  "Unlimited characters",
-                  "PDF reports",
-                  "Email support",
-                ],
-                cta: "Start Trial",
+                features: t.pricing.starter.features,
+                cta: t.pricing.starter.cta,
                 trialDays: 14,
                 popular: false,
                 highlight: false,
               },
               {
-                name: "PRO",
+                name: t.pricing.pro.name,
                 monthlyPrice: 99,
                 yearlyPrice: 79,
                 period: "/month",
-                features: [
-                  "Unlimited scans",
-                  "API access",
-                  "Team (5 users)",
-                  "Priority support",
-                ],
-                cta: "Start Trial",
+                features: t.pricing.pro.features,
+                cta: t.pricing.pro.cta,
                 trialDays: 14,
                 popular: true,
                 highlight: true,
+                badge: t.pricing.pro.badge,
               },
               {
-                name: "ENTERPRISE",
+                name: t.pricing.enterprise.name,
                 price: "Custom",
-                features: [
-                  "Everything in Pro",
-                  "Legal review",
-                  "White label",
-                  "SLA",
-                ],
-                cta: "Contact Sales",
+                features: t.pricing.enterprise.features,
+                cta: t.pricing.enterprise.cta,
                 popular: false,
                 highlight: false,
               },
@@ -670,15 +636,15 @@ export default function LandingPage() {
               return (
                 <div
                   key={idx}
-                  className={`group relative bg-white dark:bg-gray-800 rounded-xl border-2 transition-all duration-300 hover:scale-105 hover:shadow-xl ${
+                  className={`group relative bg-white dark:bg-gray-800 rounded-xl border transition-all duration-300 hover:scale-[1.02] hover:shadow-md ${
                     plan.highlight
-                      ? "border-primary shadow-lg scale-105"
-                      : "border-gray-200 dark:border-gray-700 shadow-sm hover:border-primary/50"
+                      ? "border-primary/60 shadow-md scale-[1.02]"
+                      : "border-gray-200 dark:border-gray-700 shadow-sm hover:border-primary/40"
                   }`}
                 >
-                  {plan.highlight && (
+                  {plan.highlight && plan.badge && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-white text-xs font-bold rounded-full shadow-md">
-                      MOST POPULAR
+                      {plan.badge}
                     </div>
                   )}
 
@@ -760,10 +726,10 @@ export default function LandingPage() {
       <section className="py-16 bg-white dark:bg-gray-800">
         <div className="container mx-auto px-4 max-w-3xl">
           <h2 className="text-center mb-12 md:mb-16">
-            Frequently Asked Questions
+            {t.faq.title}
           </h2>
           <div className="space-y-4">
-            {faqs.map((faq, idx) => (
+            {t.faq.items.map((faq, idx) => (
               <Card
                 key={idx}
                 variant="outlined"
@@ -795,7 +761,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 mb-12">
             {/* Product Column */}
             <div>
-              <h4 className="font-semibold text-base mb-6 text-white">Product</h4>
+              <h4 className="font-semibold text-base mb-6 text-white">{t.footer.product}</h4>
               <ul className="space-y-4">
                 <li>
                   <button
@@ -838,7 +804,7 @@ export default function LandingPage() {
 
             {/* Company Column */}
             <div>
-              <h4 className="font-semibold text-base mb-6 text-white">Company</h4>
+              <h4 className="font-semibold text-base mb-6 text-white">{t.footer.company}</h4>
               <ul className="space-y-4">
                 <li>
                   <a
@@ -881,7 +847,7 @@ export default function LandingPage() {
 
             {/* Legal Column */}
             <div>
-              <h4 className="font-semibold text-base mb-6 text-white">Legal</h4>
+              <h4 className="font-semibold text-base mb-6 text-white">{t.footer.legal}</h4>
               <ul className="space-y-4">
                 <li>
                   <a
@@ -924,7 +890,7 @@ export default function LandingPage() {
 
             {/* Social Column */}
             <div>
-              <h4 className="font-semibold text-base mb-6 text-white">Social</h4>
+              <h4 className="font-semibold text-base mb-6 text-white">{t.footer.social}</h4>
               <ul className="space-y-4">
                 <li>
                   <a
@@ -973,7 +939,7 @@ export default function LandingPage() {
           {/* Bottom Copyright */}
           <div className="border-t border-gray-800 pt-8 text-center">
             <p className="text-sm text-gray-400">
-              © 2026 Green Claims Validator. Made in Cologne 🇩🇪
+              {t.footer.copyright}
             </p>
           </div>
         </div>

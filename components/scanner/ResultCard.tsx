@@ -15,20 +15,20 @@ export const ResultCard: React.FC<ResultCardProps> = ({ finding, onCopySuggestio
     critical: {
       icon: AlertCircle,
       color: "text-danger",
-      bg: "bg-red-50 dark:bg-red-900/20",
-      border: "border-danger",
+      bg: "bg-red-50/50 dark:bg-red-900/10",
+      border: "border-danger/40",
     },
     warning: {
       icon: AlertTriangle,
       color: "text-accent",
-      bg: "bg-yellow-50 dark:bg-yellow-900/20",
-      border: "border-accent",
+      bg: "bg-amber-50/50 dark:bg-amber-900/10",
+      border: "border-accent/40",
     },
     minor: {
       icon: Info,
       color: "text-success",
-      bg: "bg-green-50 dark:bg-green-900/20",
-      border: "border-success",
+      bg: "bg-green-50/50 dark:bg-green-900/10",
+      border: "border-success/40",
     },
   };
 

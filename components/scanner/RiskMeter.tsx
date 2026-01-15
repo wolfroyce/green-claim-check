@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface RiskMeterProps {
   score: number;
@@ -14,10 +17,28 @@ export const RiskMeter: React.FC<RiskMeterProps> = ({
   warningCount,
   minorCount,
 }) => {
+  const { t, language } = useLanguage();
+  
   const getRiskLevel = () => {
-    if (score >= 70) return { label: "HIGH RISK", color: "text-danger", bg: "bg-danger" };
-    if (score >= 40) return { label: "MEDIUM RISK", color: "text-accent", bg: "bg-accent" };
-    return { label: "LOW RISK", color: "text-success", bg: "bg-success" };
+    if (score >= 70) {
+      return { 
+        label: language === "de" ? "HOHES RISIKO" : "HIGH RISK", 
+        color: "text-danger", 
+        bg: "bg-danger" 
+      };
+    }
+    if (score >= 40) {
+      return { 
+        label: language === "de" ? "MITTELES RISIKO" : "MEDIUM RISK", 
+        color: "text-accent", 
+        bg: "bg-accent" 
+      };
+    }
+    return { 
+      label: language === "de" ? "GERINGES RISIKO" : "LOW RISK", 
+      color: "text-success", 
+      bg: "bg-success" 
+    };
   };
 
   const risk = getRiskLevel();
@@ -25,7 +46,7 @@ export const RiskMeter: React.FC<RiskMeterProps> = ({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Risk Level</h3>
+        <h3 className="text-lg font-semibold">{t.app.riskLevel}</h3>
         <span className={cn("text-xl font-bold", risk.color)}>{risk.label}</span>
       </div>
 
@@ -48,19 +69,19 @@ export const RiskMeter: React.FC<RiskMeterProps> = ({
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-danger" />
           <span className="text-gray-600 dark:text-gray-400">
-            Critical: <strong>{criticalCount}</strong>
+            {t.app.critical}: <strong>{criticalCount}</strong>
           </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-accent" />
           <span className="text-gray-600 dark:text-gray-400">
-            Warnings: <strong>{warningCount}</strong>
+            {t.app.warnings}: <strong>{warningCount}</strong>
           </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-success" />
           <span className="text-gray-600 dark:text-gray-400">
-            Minor: <strong>{minorCount}</strong>
+            {t.app.minor}: <strong>{minorCount}</strong>
           </span>
         </div>
       </div>
