@@ -1,9 +1,267 @@
-import { BannedTerm, getAllTerms } from "./banned-terms";
+import { bannedTerms, BannedTerm } from './data/banned-terms';
+
+export interface ScanMatch {
+  term: BannedTerm;
+  matchText: string;
+  position: number;
+  lineNumber: number;
+  context: string; // 50 chars before/after
+}
+
+export interface ScanResults {
+  inputText: string;
+  timestamp: Date;
+  riskScore: number; // 0-100
+  findings: {
+    critical: ScanMatch[];
+    warnings: ScanMatch[];
+    minor: ScanMatch[];
+  };
+  summary: {
+    totalFindings: number;
+    uniqueTerms: number;
+    estimatedPenalty: string;
+  };
+}
+
+interface FindingsBySeverity {
+  critical: ScanMatch[];
+  warnings: ScanMatch[];
+  minor: ScanMatch[];
+}
+
+const SEVERITY_WEIGHTS = {
+  critical: 30,
+  warnings: 10,
+  minor: 3,
+} as const;
+
+/**
+ * Scans input text for banned terms according to EU regulation 2024/825
+ * @param inputText - The text to scan
+ * @returns ScanResults with findings grouped by severity
+ * @throws Error if input text is invalid
+ */
+function scanTextInternal(inputText: string): ScanResults {
+  // Input validation
+  if (typeof inputText !== 'string') {
+    throw new Error('Input text must be a string');
+  }
+
+  if (inputText.length === 0) {
+    return createEmptyResults(inputText);
+  }
+
+  // 1. Initialize results
+  const findings: FindingsBySeverity = {
+    critical: [],
+    warnings: [],
+    minor: [],
+  };
+
+  try {
+    // 2. Scan for each banned term
+    bannedTerms.forEach((term) => {
+      try {
+        const regex = term.regex;
+        
+        // Use matchAll for better performance and to get all matches
+        const matches = Array.from(inputText.matchAll(regex));
+        
+        matches.forEach((match) => {
+          if (match.index === undefined) {
+            return; // Skip if index is undefined (shouldn't happen with matchAll)
+          }
+
+          // Get line number
+          const textBeforeMatch = inputText.substring(0, match.index);
+          const lineNumber = textBeforeMatch.split('\n').length;
+
+          // Get context (50 chars before/after)
+          const start = Math.max(0, match.index - 50);
+          const end = Math.min(
+            inputText.length,
+            match.index + match[0].length + 50
+          );
+          let context = inputText.substring(start, end);
+          
+          // Add ellipsis if context is truncated
+          if (start > 0) context = '...' + context;
+          if (end < inputText.length) context = context + '...';
+
+          // Create match object
+          const scanMatch: ScanMatch = {
+            term: term,
+            matchText: match[0],
+            position: match.index,
+            lineNumber: lineNumber,
+            context: context,
+          };
+
+          // Add to appropriate severity category
+          // Map 'warning' to 'warnings' for consistency
+          const severityKey = term.severity === 'warning' ? 'warnings' : term.severity;
+          if (severityKey in findings) {
+            findings[severityKey as keyof FindingsBySeverity].push(scanMatch);
+          }
+        });
+      } catch (error) {
+        // Log error for individual term but continue scanning
+        console.warn(`Error scanning for term "${term.term}":`, error);
+      }
+    });
+
+    // 3. Calculate risk score
+    const riskScore = calculateRiskScore(findings);
+
+    // 4. Generate summary
+    const totalFindings =
+      findings.critical.length +
+      findings.warnings.length +
+      findings.minor.length;
+
+    const uniqueTerms = new Set([
+      ...findings.critical.map((f) => f.term.term),
+      ...findings.warnings.map((f) => f.term.term),
+      ...findings.minor.map((f) => f.term.term),
+    ]).size;
+
+    return {
+      inputText,
+      timestamp: new Date(),
+      riskScore,
+      findings,
+      summary: {
+        totalFindings,
+        uniqueTerms,
+        estimatedPenalty: estimatePenalty(findings.critical.length),
+      },
+    };
+  } catch (error) {
+    // Fallback: return empty results with error info
+    console.error('Error during text scanning:', error);
+    return createEmptyResults(inputText);
+  }
+}
+
+/**
+ * Creates empty scan results for edge cases
+ */
+function createEmptyResults(inputText: string): ScanResults {
+  return {
+    inputText,
+    timestamp: new Date(),
+    riskScore: 0,
+    findings: {
+      critical: [],
+      warnings: [],
+      minor: [],
+    },
+    summary: {
+      totalFindings: 0,
+      uniqueTerms: 0,
+      estimatedPenalty: 'Kein Risiko',
+    },
+  };
+}
+
+/**
+ * Calculates risk score based on findings
+ * @param findings - Findings grouped by severity
+ * @returns Risk score from 0-100
+ */
+function calculateRiskScore(findings: FindingsBySeverity): number {
+  const score =
+    findings.critical.length * SEVERITY_WEIGHTS.critical +
+    findings.warnings.length * SEVERITY_WEIGHTS.warnings +
+    findings.minor.length * SEVERITY_WEIGHTS.minor;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Estimates penalty range based on critical findings count
+ * @param criticalCount - Number of critical findings
+ * @returns Estimated penalty range string
+ */
+function estimatePenalty(criticalCount: number): string {
+  if (criticalCount === 0) return 'Kein Risiko';
+  if (criticalCount <= 2) return '€10.000 - €50.000';
+  if (criticalCount <= 5) return '€50.000 - €100.000';
+  return '€100.000+';
+}
+
+/**
+ * Highlights matches in text with HTML mark tags
+ * @param text - Original text
+ * @param matches - Array of scan matches to highlight
+ * @returns HTML string with highlighted matches
+ */
+export function highlightMatches(
+  text: string,
+  matches: ScanMatch[]
+): string {
+  if (!text || matches.length === 0) {
+    return text;
+  }
+
+  try {
+    // Sort matches by position (descending) to avoid offset issues when replacing
+    const sortedMatches = [...matches].sort((a, b) => b.position - a.position);
+
+    let result = text;
+
+    sortedMatches.forEach((match) => {
+      const severityClass = `risk-${match.term.severity}`;
+      const highlighted = `<mark class="${severityClass}">${escapeHtml(match.matchText)}</mark>`;
+      
+      // Replace the match text with highlighted version
+      const before = result.substring(0, match.position);
+      const after = result.substring(match.position + match.matchText.length);
+      result = before + highlighted + after;
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error highlighting matches:', error);
+    return text; // Return original text on error
+  }
+}
+
+/**
+ * Escapes HTML special characters
+ * @param text - Text to escape
+ * @returns Escaped HTML string
+ */
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+/**
+ * Legacy interface for backward compatibility
+ * Converts new ScanResults to old ScanResponse format
+ */
+export interface ScanResponse {
+  score: number;
+  findings: ScanResult[];
+  timestamp: Date;
+  totalMatches: number;
+  criticalCount: number;
+  warningCount: number;
+  minorCount: number;
+}
 
 export interface ScanResult {
   term: string;
   matches: Match[];
-  severity: "critical" | "warning" | "minor";
+  severity: 'critical' | 'warning' | 'minor';
   regulation: string;
   penaltyRange: string;
   description: string;
@@ -17,143 +275,132 @@ export interface Match {
   context: string;
 }
 
-export interface ScanResponse {
-  score: number;
-  findings: ScanResult[];
-  timestamp: Date;
-  totalMatches: number;
-  criticalCount: number;
-  warningCount: number;
-  minorCount: number;
+/**
+ * Scans text and returns results in new format (grouped by severity)
+ * @param inputText - The text to scan
+ * @returns ScanResults with findings grouped by severity
+ */
+export function scanTextNew(inputText: string): ScanResults {
+  return scanTextInternal(inputText);
 }
 
-const SEVERITY_WEIGHTS = {
-  critical: 30,
-  warning: 10,
-  minor: 3,
-};
-
+/**
+ * Legacy scanText function for backward compatibility
+ * Returns ScanResponse format (old interface)
+ * This is the default export to maintain backward compatibility
+ * @param inputText - The text to scan
+ * @returns ScanResponse in legacy format
+ */
 export function scanText(inputText: string): ScanResponse {
-  const allTerms = getAllTerms();
-  const findings: ScanResult[] = [];
-  const lines = inputText.split("\n");
+  const results = scanTextInternal(inputText);
+  return convertToLegacyFormat(results);
+}
 
-  // Find line numbers for positions
-  function getLineNumber(index: number): number {
-    let line = 1;
-    let currentIndex = 0;
-    for (const lineText of lines) {
-      if (currentIndex + lineText.length >= index) {
-        return line;
-      }
-      currentIndex += lineText.length + 1; // +1 for newline
-      line++;
-    }
-    return line;
-  }
+/**
+ * Converts new ScanResults format to legacy ScanResponse format
+ * @param results - New format scan results
+ * @returns Legacy format scan response
+ */
+function convertToLegacyFormat(results: ScanResults): ScanResponse {
+  const allFindings: ScanResult[] = [];
 
-  // Get context around match
-  function getContext(index: number, length: number): string {
-    const start = Math.max(0, index - 30);
-    const end = Math.min(inputText.length, index + length + 30);
-    let context = inputText.substring(start, end);
-    if (start > 0) context = "..." + context;
-    if (end < inputText.length) context = context + "...";
-    return context;
-  }
-
-  // Scan for each term
-  for (const term of allTerms) {
-    const regex = new RegExp(term.regex, "gi");
-    const matches: Match[] = [];
-    let match;
-
-    while ((match = regex.exec(inputText)) !== null) {
-      const line = getLineNumber(match.index);
-      matches.push({
-        index: match.index,
-        length: match[0].length,
-        line,
-        context: getContext(match.index, match[0].length),
+  // Convert critical findings
+  results.findings.critical.forEach((match) => {
+    const existing = allFindings.find((f) => f.term === match.term.term);
+    if (existing) {
+      existing.matches.push({
+        index: match.position,
+        length: match.matchText.length,
+        line: match.lineNumber,
+        context: match.context,
+      });
+    } else {
+      allFindings.push({
+        term: match.term.term,
+        matches: [
+          {
+            index: match.position,
+            length: match.matchText.length,
+            line: match.lineNumber,
+            context: match.context,
+          },
+        ],
+        severity: match.term.severity,
+        regulation: match.term.regulation,
+        penaltyRange: match.term.penaltyRange,
+        description: match.term.description,
+        alternatives: match.term.alternatives,
       });
     }
+  });
 
-    if (matches.length > 0) {
-      findings.push({
-        term: term.term,
-        matches,
-        severity: term.severity,
-        regulation: term.regulation,
-        penaltyRange: term.penaltyRange,
-        description: term.description,
-        alternatives: term.alternatives,
+  // Convert warning findings
+  results.findings.warnings.forEach((match) => {
+    const existing = allFindings.find((f) => f.term === match.term.term);
+    if (existing) {
+      existing.matches.push({
+        index: match.position,
+        length: match.matchText.length,
+        line: match.lineNumber,
+        context: match.context,
+      });
+    } else {
+      allFindings.push({
+        term: match.term.term,
+        matches: [
+          {
+            index: match.position,
+            length: match.matchText.length,
+            line: match.lineNumber,
+            context: match.context,
+          },
+        ],
+        severity: match.term.severity,
+        regulation: match.term.regulation,
+        penaltyRange: match.term.penaltyRange,
+        description: match.term.description,
+        alternatives: match.term.alternatives,
       });
     }
-  }
+  });
 
-  // Calculate risk score
-  const criticalCount = findings.filter((f) => f.severity === "critical").length;
-  const warningCount = findings.filter((f) => f.severity === "warning").length;
-  const minorCount = findings.filter((f) => f.severity === "minor").length;
-
-  const totalMatches = findings.reduce((sum, f) => sum + f.matches.length, 0);
-
-  const score = Math.min(
-    100,
-    criticalCount * SEVERITY_WEIGHTS.critical +
-      warningCount * SEVERITY_WEIGHTS.warning +
-      minorCount * SEVERITY_WEIGHTS.minor
-  );
+  // Convert minor findings
+  results.findings.minor.forEach((match) => {
+    const existing = allFindings.find((f) => f.term === match.term.term);
+    if (existing) {
+      existing.matches.push({
+        index: match.position,
+        length: match.matchText.length,
+        line: match.lineNumber,
+        context: match.context,
+      });
+    } else {
+      allFindings.push({
+        term: match.term.term,
+        matches: [
+          {
+            index: match.position,
+            length: match.matchText.length,
+            line: match.lineNumber,
+            context: match.context,
+          },
+        ],
+        severity: match.term.severity,
+        regulation: match.term.regulation,
+        penaltyRange: match.term.penaltyRange,
+        description: match.term.description,
+        alternatives: match.term.alternatives,
+      });
+    }
+  });
 
   return {
-    score,
-    findings,
-    timestamp: new Date(),
-    totalMatches,
-    criticalCount,
-    warningCount,
-    minorCount,
+    score: results.riskScore,
+    findings: allFindings,
+    timestamp: results.timestamp,
+    totalMatches: results.summary.totalFindings,
+    criticalCount: results.findings.critical.length,
+    warningCount: results.findings.warnings.length,
+    minorCount: results.findings.minor.length,
   };
-}
-
-export function highlightText(
-  text: string,
-  findings: ScanResult[]
-): string {
-  let highlighted = text;
-  const replacements: Array<{ start: number; end: number; replacement: string }> = [];
-
-  // Collect all replacements
-  for (const finding of findings) {
-    for (const match of finding.matches) {
-      const severityClass =
-        finding.severity === "critical"
-          ? "bg-red-200 dark:bg-red-900/50"
-          : finding.severity === "warning"
-          ? "bg-yellow-200 dark:bg-yellow-900/50"
-          : "bg-green-200 dark:bg-green-900/50";
-
-      const originalText = text.substring(match.index, match.index + match.length);
-      const replacement = `<mark class="${severityClass} px-1 rounded">${originalText}</mark>`;
-      
-      replacements.push({
-        start: match.index,
-        end: match.index + match.length,
-        replacement,
-      });
-    }
-  }
-
-  // Sort by index descending to avoid offset issues
-  replacements.sort((a, b) => b.start - a.start);
-
-  // Apply replacements
-  for (const replacement of replacements) {
-    highlighted =
-      highlighted.substring(0, replacement.start) +
-      replacement.replacement +
-      highlighted.substring(replacement.end);
-  }
-
-  return highlighted;
 }

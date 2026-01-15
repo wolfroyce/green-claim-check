@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { scanTextNew, ScanResults } from "@/lib/scanner-logic";
 import { 
   FileText, 
   Upload, 
@@ -12,24 +13,30 @@ import {
   Mail,
   MessageSquare,
   Package,
-  Globe
+  Globe,
+  Loader2,
+  CheckCircle
 } from "lucide-react";
 
 interface InputPanelProps {
   inputText: string;
   onInputChange: (text: string) => void;
-  onScan: () => void;
-  isScanning?: boolean;
+  onScan?: () => void; // Legacy prop for backward compatibility
+  isScanning?: boolean; // Legacy prop
+  onScanComplete?: (results: ScanResults) => void;
 }
 
 export const InputPanel: React.FC<InputPanelProps> = ({
   inputText,
   onInputChange,
   onScan,
-  isScanning = false,
+  isScanning: externalIsScanning,
+  onScanComplete,
 }) => {
   const { t } = useLanguage();
   const [showTemplates, setShowTemplates] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
 
   const exampleTemplates = [
     {
@@ -73,7 +80,44 @@ export const InputPanel: React.FC<InputPanelProps> = ({
 
   const handleClear = () => {
     onInputChange("");
+    setScanSuccess(false);
   };
+
+  const handleScan = async () => {
+    if (!inputText.trim() || isScanning) return;
+
+    setIsScanning(true);
+    setScanSuccess(false);
+
+    try {
+      // Artificial delay for better UX
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Perform scan
+      const results = scanTextNew(inputText);
+
+      // Call legacy onScan if provided (for backward compatibility)
+      if (onScan) {
+        onScan();
+      }
+
+      // Call new onScanComplete callback
+      if (onScanComplete) {
+        onScanComplete(results);
+      }
+
+      // Show success animation
+      setScanSuccess(true);
+      setTimeout(() => setScanSuccess(false), 2000);
+    } catch (error) {
+      console.error("Error during scan:", error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Use external isScanning if provided, otherwise use internal state
+  const scanning = externalIsScanning !== undefined ? externalIsScanning : isScanning;
 
   return (
     <Card variant="elevated" className="shadow-sm">
@@ -162,14 +206,29 @@ export const InputPanel: React.FC<InputPanelProps> = ({
 
           {/* Scan Button - Prominent, Green */}
           <Button
-            onClick={onScan}
-            isLoading={isScanning}
-            disabled={!inputText.trim()}
-            className="ml-auto px-8 py-2.5 text-base font-semibold"
+            onClick={handleScan}
+            disabled={!inputText.trim() || scanning}
+            className={`ml-auto px-8 py-2.5 text-base font-semibold transition-all ${
+              scanning ? "animate-pulse" : ""
+            } ${scanSuccess ? "animate-success-flash bg-success" : ""}`}
             variant="primary"
           >
-            <FileText className="w-5 h-5 mr-2" />
-            {t.app.scanText}
+            {scanning ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Scanning...
+              </>
+            ) : scanSuccess ? (
+              <>
+                <CheckCircle className="w-5 h-5 mr-2" />
+                Scan Complete
+              </>
+            ) : (
+              <>
+                <FileText className="w-5 h-5 mr-2" />
+                {t.app.scanText}
+              </>
+            )}
           </Button>
         </div>
       </div>

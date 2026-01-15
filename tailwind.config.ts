@@ -54,6 +54,7 @@ const config: Config = {
         "slide-up": "slideUp 0.4s ease-out",
         "pulse-slow": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "scan-pulse": "scanPulse 1.5s ease-in-out infinite",
+        "slide-in": "slideIn 0.4s ease-out forwards",
       },
       keyframes: {
         fadeIn: {
@@ -67,6 +68,10 @@ const config: Config = {
         scanPulse: {
           "0%, 100%": { opacity: "1", transform: "scale(1)" },
           "50%": { opacity: "0.8", transform: "scale(1.05)" },
+        },
+        slideIn: {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
         },
       },
     },
