@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { AppHeader } from "@/components/AppHeader";
 import { InputPanel } from "@/components/scanner/InputPanel";
 import { ResultsPanel } from "@/components/scanner/ResultsPanel";
@@ -15,7 +16,13 @@ export default function AppPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] dark:bg-gray-900 flex flex-col">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="min-h-screen bg-[#FAFAF9] dark:bg-gray-900 flex flex-col"
+    >
       <AppHeader
         activeTab="scanner"
         creditsRemaining={97}
@@ -31,6 +38,7 @@ export default function AppPage() {
               inputText={inputText}
               onInputChange={setInputText}
               onScanComplete={handleScanComplete}
+              scanResults={results}
             />
           </div>
         </div>
@@ -52,6 +60,6 @@ export default function AppPage() {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

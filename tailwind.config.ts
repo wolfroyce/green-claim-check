@@ -55,6 +55,7 @@ const config: Config = {
         "pulse-slow": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "scan-pulse": "scanPulse 1.5s ease-in-out infinite",
         "slide-in": "slideIn 0.4s ease-out forwards",
+        "shimmer": "shimmer 2s infinite",
       },
       keyframes: {
         fadeIn: {
@@ -72,6 +73,10 @@ const config: Config = {
         slideIn: {
           "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
         },
       },
     },

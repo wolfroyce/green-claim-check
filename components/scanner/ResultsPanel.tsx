@@ -3,8 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SkeletonResults } from "@/components/ui/Skeleton";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
 import { ScanResults, ScanMatch } from "@/lib/scanner-logic";
+import { exportToPDF } from "@/lib/pdf-export";
 import { 
   Search, 
   Download, 
@@ -132,27 +136,65 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
       `Minor: ${results.findings.minor.length}\n` +
       `Estimated Penalty: ${results.summary.estimatedPenalty}`;
     
-    navigator.clipboard.writeText(summary);
+    copyToClipboard(summary);
+  };
+
+  // Copy to clipboard with fallback for older browsers
+  const copyToClipboard = async (text: string) => {
+    try {
+      // Modern clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        toast.success("Copied to clipboard");
+        return;
+      }
+
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      try {
+        const successful = document.execCommand("copy");
+        if (successful) {
+          toast.success("Copied to clipboard");
+        } else {
+          throw new Error("Copy command failed");
+        }
+      } catch (err) {
+        console.error("Fallback copy failed:", err);
+        toast.error("Failed to copy");
+      } finally {
+        document.body.removeChild(textArea);
+      }
+    } catch (err) {
+      console.error("Copy failed:", err);
+      toast.error("Failed to copy");
+    }
+  };
+
+  const handleCopyAlternative = (text: string) => {
+    copyToClipboard(text);
+    // Also call the callback if provided
+    if (onCopySuggestion) {
+      onCopySuggestion(text, 0);
+    }
   };
 
   // Empty State
   if (!results) {
     return (
-      <Card variant="elevated" className="shadow-sm h-full flex items-center justify-center min-h-[500px]">
-        <div className="text-center px-6 py-12">
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-24 h-24 rounded-full bg-primary/10 dark:bg-primary/20 animate-pulse"></div>
-            </div>
-            <Search className="w-16 h-16 mx-auto text-primary relative z-10" />
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Ready to Scan
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 max-w-sm mx-auto leading-relaxed">
-            Paste your text and click Scan to begin analyzing your marketing content for compliance.
-          </p>
-        </div>
+      <Card variant="elevated" className="shadow-sm h-full min-h-[500px]">
+        <EmptyState
+          icon={Search}
+          title="Ready to Scan"
+          description="Paste your text and click Scan to begin analyzing your marketing content for compliance."
+        />
       </Card>
     );
   }
@@ -319,20 +361,24 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
                             </div>
                             <div className="space-y-2">
                               {finding.term.alternatives.map((alt, altIdx) => (
-                                <button
+                                <div
                                   key={altIdx}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onCopySuggestion) {
-                                      onCopySuggestion(alt, idx);
-                                    } else {
-                                      navigator.clipboard.writeText(alt);
-                                    }
-                                  }}
-                                  className="block w-full text-left text-sm text-primary hover:text-primary-dark transition-colors p-2 rounded hover:bg-primary/5"
+                                  className="flex items-center gap-2 p-2 rounded hover:bg-primary/5 group"
                                 >
-                                  • {alt}
-                                </button>
+                                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
+                                    • {alt}
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCopyAlternative(alt);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-primary/10 rounded text-primary hover:text-primary-dark"
+                                    title="Copy alternative"
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                  </button>
+                                </div>
                               ))}
                             </div>
                           </div>
@@ -424,20 +470,24 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
                             </div>
                             <div className="space-y-2">
                               {finding.term.alternatives.map((alt, altIdx) => (
-                                <button
+                                <div
                                   key={altIdx}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onCopySuggestion) {
-                                      onCopySuggestion(alt, idx);
-                                    } else {
-                                      navigator.clipboard.writeText(alt);
-                                    }
-                                  }}
-                                  className="block w-full text-left text-sm text-primary hover:text-primary-dark transition-colors p-2 rounded hover:bg-primary/5"
+                                  className="flex items-center gap-2 p-2 rounded hover:bg-primary/5 group"
                                 >
-                                  • {alt}
-                                </button>
+                                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
+                                    • {alt}
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCopyAlternative(alt);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-primary/10 rounded text-primary hover:text-primary-dark"
+                                    title="Copy alternative"
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                  </button>
+                                </div>
                               ))}
                             </div>
                           </div>
@@ -529,20 +579,24 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
                             </div>
                             <div className="space-y-2">
                               {finding.term.alternatives.map((alt, altIdx) => (
-                                <button
+                                <div
                                   key={altIdx}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onCopySuggestion) {
-                                      onCopySuggestion(alt, idx);
-                                    } else {
-                                      navigator.clipboard.writeText(alt);
-                                    }
-                                  }}
-                                  className="block w-full text-left text-sm text-primary hover:text-primary-dark transition-colors p-2 rounded hover:bg-primary/5"
+                                  className="flex items-center gap-2 p-2 rounded hover:bg-primary/5 group"
                                 >
-                                  • {alt}
-                                </button>
+                                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
+                                    • {alt}
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCopyAlternative(alt);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-primary/10 rounded text-primary hover:text-primary-dark"
+                                    title="Copy alternative"
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                  </button>
+                                </div>
                               ))}
                             </div>
                           </div>
@@ -573,14 +627,16 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
         <div className="flex flex-wrap gap-2">
           <Button
             onClick={() => {
+              if (results) {
+                exportToPDF(results);
+              }
               if (onExportPDF) {
                 onExportPDF();
-              } else {
-                console.log("Export PDF");
               }
             }}
             variant="primary"
             className="flex-1 min-w-[140px]"
+            disabled={!results}
           >
             <Download className="w-4 h-4 mr-2" />
             Download PDF

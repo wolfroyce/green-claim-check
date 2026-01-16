@@ -1,10 +1,25 @@
 import { jsPDF } from "jspdf";
-import { ScanResponse } from "./scanner-logic";
+import autoTable from "jspdf-autotable";
+import { ScanResults } from "./scanner-logic";
 
-export function exportToPDF(scanResult: ScanResponse, originalText: string): void {
-  // Ensure we're in a browser environment
+// Color definitions matching the app theme
+const COLORS = {
+  primary: [74, 107, 90], // #4A6B5A
+  danger: [200, 90, 79], // #C85A4F
+  accent: [184, 134, 91], // #B8865B
+  success: [90, 124, 107], // #5A7C6B
+  gray: [107, 114, 128], // #6B7280
+  lightGray: [243, 244, 246], // #F3F4F6
+};
+
+/**
+ * Generates a professional PDF report from scan results
+ * @param results - Scan results to include in the report
+ * @param companyName - Optional company name for header
+ */
+export function exportToPDF(results: ScanResults, companyName?: string): void {
   if (typeof window === "undefined") {
-    console.error("PDF export is only available in the browser");
+    console.error("PDF export can only be called from the browser");
     return;
   }
 
@@ -14,162 +29,350 @@ export function exportToPDF(scanResult: ScanResponse, originalText: string): voi
   const margin = 20;
   let yPos = margin;
 
-  // Title
-  doc.setFontSize(20);
-  doc.setTextColor(74, 107, 90); // Primary green (damped)
-  doc.text("Green Claims Compliance Report", margin, yPos);
-  yPos += 15;
+  // Helper function to add new page if needed
+  const checkPageBreak = (requiredHeight: number) => {
+    if (yPos + requiredHeight > pageHeight - margin) {
+      doc.addPage();
+      yPos = margin;
+      return true;
+    }
+    return false;
+  };
 
-  // Date
+  // ========== HEADER ==========
+  doc.setFillColor(...COLORS.primary);
+  doc.rect(0, 0, pageWidth, 50, "F");
+
+  // Logo/Title
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(24);
+  doc.setFont("helvetica", "bold");
+  doc.text("Green Claim Check", margin, 25);
+
+  // Subtitle
   doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text(
-    `Generated: ${scanResult.timestamp.toLocaleString()}`,
-    margin,
-    yPos
-  );
-  yPos += 15;
+  doc.setFont("helvetica", "normal");
+  doc.text("EU Compliance Report", margin, 35);
 
-  // Risk Score
-  doc.setFontSize(16);
-  doc.setTextColor(0, 0, 0);
-  doc.text(`Risk Score: ${scanResult.score}%`, margin, yPos);
-  yPos += 10;
+  // Timestamp (right aligned)
+  const timestamp = results.timestamp.toLocaleString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  doc.text(`Generated: ${timestamp}`, pageWidth - margin, 35, {
+    align: "right",
+  });
 
-  // Risk Level
-  const riskLevel =
-    scanResult.score >= 70
-      ? "HIGH RISK"
-      : scanResult.score >= 40
-      ? "MEDIUM RISK"
-      : "LOW RISK";
-  const riskColor =
-    scanResult.score >= 70
-      ? [239, 68, 68]
-      : scanResult.score >= 40
-      ? [245, 158, 11]
-      : [16, 185, 129];
+  yPos = 60;
+
+  // ========== RISK SCORE ==========
+  checkPageBreak(40);
+  
+  // Risk Score Circle Background
+  const scoreColor = 
+    results.riskScore >= 81 ? COLORS.danger :
+    results.riskScore >= 61 ? [255, 165, 0] : // Orange
+    results.riskScore >= 31 ? COLORS.accent :
+    COLORS.success;
+
+  doc.setFillColor(...scoreColor);
+  doc.circle(pageWidth / 2, yPos + 20, 25, "F");
+
+  // Risk Score Text
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(32);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${results.riskScore}`, pageWidth / 2, yPos + 25, { align: "center" });
 
   doc.setFontSize(12);
-  doc.setTextColor(riskColor[0], riskColor[1], riskColor[2]);
-  doc.text(`Risk Level: ${riskLevel}`, margin, yPos);
-  yPos += 15;
+  doc.text("/100", pageWidth / 2, yPos + 32, { align: "center" });
 
-  // Summary
+  // Risk Level Label
+  const riskLevel = 
+    results.riskScore >= 81 ? "Critical Risk" :
+    results.riskScore >= 61 ? "High Risk" :
+    results.riskScore >= 31 ? "Medium Risk" :
+    "Low Risk";
+
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(riskLevel, pageWidth / 2, yPos + 40, { align: "center" });
+
+  yPos += 55;
+
+  // ========== SUMMARY STATISTICS ==========
+  checkPageBreak(50);
+
+  doc.setTextColor(...COLORS.gray);
   doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Summary:", margin, yPos);
+  doc.setFont("helvetica", "bold");
+  doc.text("Summary", margin, yPos);
+
   yPos += 8;
-  doc.setFontSize(10);
-  doc.text(
-    `• Critical Issues: ${scanResult.criticalCount}`,
-    margin + 5,
-    yPos
-  );
-  yPos += 6;
-  doc.text(`• Warnings: ${scanResult.warningCount}`, margin + 5, yPos);
-  yPos += 6;
-  doc.text(`• Minor Notes: ${scanResult.minorCount}`, margin + 5, yPos);
-  yPos += 6;
-  doc.text(`• Total Matches: ${scanResult.totalMatches}`, margin + 5, yPos);
-  yPos += 15;
 
-  // Findings
-  if (scanResult.findings.length > 0) {
+  // Summary boxes
+  const boxWidth = (pageWidth - 2 * margin - 20) / 3;
+  const boxHeight = 30;
+
+  // Total Findings
+  doc.setFillColor(...COLORS.lightGray);
+  doc.rect(margin, yPos, boxWidth, boxHeight, "F");
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Total Findings", margin + boxWidth / 2, yPos + 8, { align: "center" });
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${results.summary.totalFindings}`, margin + boxWidth / 2, yPos + 20, { align: "center" });
+
+  // Unique Terms
+  doc.setFillColor(...COLORS.lightGray);
+  doc.rect(margin + boxWidth + 10, yPos, boxWidth, boxHeight, "F");
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Unique Terms", margin + boxWidth + 10 + boxWidth / 2, yPos + 8, { align: "center" });
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${results.summary.uniqueTerms}`, margin + boxWidth + 10 + boxWidth / 2, yPos + 20, { align: "center" });
+
+  // Estimated Penalty
+  doc.setFillColor(...COLORS.danger);
+  doc.rect(margin + 2 * (boxWidth + 10), yPos, boxWidth, boxHeight, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Est. Penalty", margin + 2 * (boxWidth + 10) + boxWidth / 2, yPos + 8, { align: "center" });
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(results.summary.estimatedPenalty, margin + 2 * (boxWidth + 10) + boxWidth / 2, yPos + 20, { align: "center" });
+
+  yPos += boxHeight + 15;
+
+  // ========== FINDINGS BY SEVERITY ==========
+  
+  // Critical Findings
+  if (results.findings.critical.length > 0) {
+    checkPageBreak(30);
+    doc.setTextColor(...COLORS.danger);
     doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text("Flagged Terms:", margin, yPos);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Critical Findings (${results.findings.critical.length})`, margin, yPos);
     yPos += 10;
 
-    for (const finding of scanResult.findings) {
-      // Check if we need a new page
-      if (yPos > pageHeight - 60) {
-        doc.addPage();
-        yPos = margin;
-      }
+    const criticalData = results.findings.critical.map((finding, idx) => [
+      idx + 1,
+      finding.term.term,
+      finding.lineNumber.toString(),
+      finding.term.regulation,
+      finding.term.description.substring(0, 60) + (finding.term.description.length > 60 ? "..." : ""),
+    ]);
 
-      const severityColor =
-        finding.severity === "critical"
-          ? [239, 68, 68]
-          : finding.severity === "warning"
-          ? [245, 158, 11]
-          : [16, 185, 129];
+    autoTable(doc, {
+      startY: yPos,
+      head: [["#", "Term", "Line", "Regulation", "Description"]],
+      body: criticalData,
+      headStyles: {
+        fillColor: COLORS.danger,
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      bodyStyles: {
+        textColor: [0, 0, 0],
+      },
+      alternateRowStyles: {
+        fillColor: [255, 245, 245],
+      },
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 8 },
+    });
 
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  // Warning Findings
+  if (results.findings.warnings.length > 0) {
+    checkPageBreak(30);
+    doc.setTextColor(...COLORS.accent);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Warnings (${results.findings.warnings.length})`, margin, yPos);
+    yPos += 10;
+
+    const warningData = results.findings.warnings.map((finding, idx) => [
+      idx + 1,
+      finding.term.term,
+      finding.lineNumber.toString(),
+      finding.term.regulation,
+      finding.term.description.substring(0, 60) + (finding.term.description.length > 60 ? "..." : ""),
+    ]);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [["#", "Term", "Line", "Regulation", "Description"]],
+      body: warningData,
+      headStyles: {
+        fillColor: COLORS.accent,
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      bodyStyles: {
+        textColor: [0, 0, 0],
+      },
+      alternateRowStyles: {
+        fillColor: [255, 250, 240],
+      },
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 8 },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  // Minor Findings
+  if (results.findings.minor.length > 0) {
+    checkPageBreak(30);
+    doc.setTextColor(...COLORS.success);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Minor Issues (${results.findings.minor.length})`, margin, yPos);
+    yPos += 10;
+
+    const minorData = results.findings.minor.map((finding, idx) => [
+      idx + 1,
+      finding.term.term,
+      finding.lineNumber.toString(),
+      finding.term.regulation,
+      finding.term.description.substring(0, 60) + (finding.term.description.length > 60 ? "..." : ""),
+    ]);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [["#", "Term", "Line", "Regulation", "Description"]],
+      body: minorData,
+      headStyles: {
+        fillColor: COLORS.success,
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      bodyStyles: {
+        textColor: [0, 0, 0],
+      },
+      alternateRowStyles: {
+        fillColor: [240, 253, 244],
+      },
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 8 },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  // ========== DETAILED FINDINGS ==========
+  // Add detailed findings with recommendations on new pages if needed
+  const allFindings = [
+    ...results.findings.critical.map(f => ({ ...f, severity: "critical" as const })),
+    ...results.findings.warnings.map(f => ({ ...f, severity: "warning" as const })),
+    ...results.findings.minor.map(f => ({ ...f, severity: "minor" as const })),
+  ];
+
+  if (allFindings.length > 0) {
+    checkPageBreak(40);
+    doc.setTextColor(...COLORS.gray);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Detailed Findings & Recommendations", margin, yPos);
+    yPos += 15;
+
+    allFindings.forEach((finding, idx) => {
+      checkPageBreak(60);
+
+      // Severity badge
+      const severityColor = 
+        finding.severity === "critical" ? COLORS.danger :
+        finding.severity === "warning" ? COLORS.accent :
+        COLORS.success;
+
+      doc.setFillColor(...severityColor);
+      doc.rect(margin, yPos - 5, 15, 5, "F");
+
+      // Term name
+      doc.setTextColor(...severityColor);
       doc.setFontSize(11);
-      doc.setTextColor(severityColor[0], severityColor[1], severityColor[2]);
-      doc.text(
-        `${finding.severity.toUpperCase()}: "${finding.term}"`,
-        margin,
-        yPos
-      );
-      yPos += 7;
+      doc.setFont("helvetica", "bold");
+      doc.text(`${idx + 1}. ${finding.term.term}`, margin + 18, yPos);
 
+      // Line number and regulation
+      doc.setTextColor(...COLORS.gray);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Line ${finding.lineNumber} • ${finding.term.regulation}`, margin + 18, yPos + 7);
+
+      // Context
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      const contextLines = doc.splitTextToSize(`Context: ${finding.context}`, pageWidth - 2 * margin - 18);
+      doc.text(contextLines, margin + 18, yPos + 14);
+
+      // Description
       doc.setFontSize(9);
       doc.setTextColor(0, 0, 0);
-      const lines = doc.splitTextToSize(
-        `Regulation: ${finding.regulation} | Penalty: ${finding.penaltyRange}`,
-        pageWidth - 2 * margin
-      );
-      doc.text(lines, margin + 5, yPos);
-      yPos += lines.length * 5 + 3;
+      const descLines = doc.splitTextToSize(`Description: ${finding.term.description}`, pageWidth - 2 * margin - 18);
+      doc.text(descLines, margin + 18, yPos + 14 + contextLines.length * 4);
 
-      const descLines = doc.splitTextToSize(
-        `Description: ${finding.description}`,
-        pageWidth - 2 * margin
-      );
-      doc.text(descLines, margin + 5, yPos);
-      yPos += descLines.length * 5 + 3;
+      // Penalty range
+      doc.setFontSize(8);
+      doc.setTextColor(...COLORS.danger);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Penalty Range: ${finding.term.penaltyRange}`, margin + 18, yPos + 14 + contextLines.length * 4 + descLines.length * 4);
 
-      if (finding.alternatives.length > 0) {
-        doc.text("Suggestions:", margin + 5, yPos);
-        yPos += 5;
-        for (const alt of finding.alternatives.slice(0, 2)) {
-          const altLines = doc.splitTextToSize(`• ${alt}`, pageWidth - 2 * margin - 10);
-          doc.text(altLines, margin + 10, yPos);
-          yPos += altLines.length * 4 + 2;
-        }
+      // Recommendations
+      if (finding.term.alternatives && finding.term.alternatives.length > 0) {
+        doc.setFontSize(9);
+        doc.setTextColor(...COLORS.primary);
+        doc.setFont("helvetica", "bold");
+        doc.text("Recommendations:", margin + 18, yPos + 14 + contextLines.length * 4 + descLines.length * 4 + 6);
+        
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+        finding.term.alternatives.forEach((alt, altIdx) => {
+          const altY = yPos + 14 + contextLines.length * 4 + descLines.length * 4 + 12 + altIdx * 5;
+          doc.text(`• ${alt}`, margin + 25, altY);
+        });
       }
 
-      yPos += 5;
-    }
+      yPos += 14 + contextLines.length * 4 + descLines.length * 4 + (finding.term.alternatives?.length || 0) * 5 + 15;
+    });
   }
 
-  // Original Text (on new page if needed)
-  if (yPos > pageHeight - 100) {
-    doc.addPage();
-    yPos = margin;
-  } else {
-    yPos += 10;
-  }
-
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Original Text:", margin, yPos);
-  yPos += 8;
-
-  doc.setFontSize(9);
-  const textLines = doc.splitTextToSize(originalText, pageWidth - 2 * margin);
-  doc.text(textLines, margin, yPos);
-
-  // Footer
+  // ========== FOOTER ==========
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text(
-      `Green Claim Check - EU 2024/825 Compliance Tool`,
-      pageWidth / 2,
-      pageHeight - 10,
-      { align: "center" }
-    );
-    doc.text(
-      `Page ${i} of ${totalPages}`,
-      pageWidth - margin,
-      pageHeight - 10,
-      { align: "right" }
-    );
+    
+    // Footer line
+    doc.setDrawColor(...COLORS.gray);
+    doc.setLineWidth(0.5);
+    doc.line(margin, pageHeight - 25, pageWidth - margin, pageHeight - 25);
+
+    // Disclaimer
+    doc.setTextColor(...COLORS.gray);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "italic");
+    const disclaimer = "This report is generated automatically and serves as a preliminary assessment. " +
+      "It does not constitute legal advice. Please consult with legal professionals for compliance verification. " +
+      "Based on EU Regulation 2024/825 (effective September 2026).";
+    const disclaimerLines = doc.splitTextToSize(disclaimer, pageWidth - 2 * margin);
+    doc.text(disclaimerLines, margin, pageHeight - 20, { align: "justify" });
+
+    // Page number
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: "right" });
   }
 
-  doc.save(`green-claims-report-${Date.now()}.pdf`);
+  // ========== SAVE PDF ==========
+  const fileName = `green-claim-report-${new Date().toISOString().split("T")[0]}.pdf`;
+  doc.save(fileName);
 }

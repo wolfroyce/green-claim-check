@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { ThemeProvider } from "next-themes";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Green Claim Check - EU Compliance Tool",
@@ -15,7 +17,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <LanguageProvider>{children}</LanguageProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <LanguageProvider>
+            {children}
+            <Toaster 
+              position="bottom-right"
+              richColors
+              closeButton
+              duration={3000}
+            />
+          </LanguageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
