@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scanText } from "@/lib/scanner-logic";
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { getSessionFromCookies } from '@/lib/supabase/get-session-from-cookies';
 
 // Handle OPTIONS for CORS preflight
 export async function OPTIONS() {
@@ -18,11 +17,8 @@ export async function OPTIONS() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication (middleware should handle this, but double-check for API)
-    const supabase = createRouteHandlerClient({ cookies });
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    // Check authentication - parse session directly from cookies
+    const session = await getSessionFromCookies();
 
     if (!session) {
       return NextResponse.json(

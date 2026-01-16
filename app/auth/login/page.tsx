@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth";
+import { syncSessionToCookies } from "@/lib/supabase/sync-session";
 import { toast } from "sonner";
 import { Shield, Mail, Lock, Github, Chrome, ArrowRight } from "lucide-react";
 
@@ -69,12 +70,27 @@ export default function LoginPage() {
         return;
       }
 
-      if (data.user) {
+      if (data.user && data.session) {
         toast.success("Signed in successfully!");
+        
+        // Wait a moment for session to be stored in localStorage
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Explicitly sync session to cookies so middleware can read it
+        syncSessionToCookies();
+        
+        // Wait a bit more to ensure cookies are set
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Redirect to original destination or default to /app
         const redirectTo = searchParams.get('redirect') || "/app";
-        router.push(redirectTo);
-        router.refresh();
+        
+        // Use window.location for a full page reload to ensure session is available
+        window.location.href = redirectTo;
+      } else if (data.user) {
+        // User exists but no session (email confirmation required)
+        toast.info("Please check your email to confirm your account.");
+        router.push("/auth/login");
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -88,20 +104,38 @@ export default function LoginPage() {
     setIsSocialLoading(provider);
     try {
       const supabase = createSupabaseClient();
-      const { error } = await supabase.auth.signInWithOAuth({
+      const redirectTo = searchParams.get('redirect') || '/app';
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
       if (error) {
+        console.error(`OAuth ${provider} error:`, error);
         toast.error(error.message || `Failed to sign in with ${provider}`);
         setIsSocialLoading(null);
+        return;
       }
-    } catch (error) {
+
+      // Check if we got a URL (OAuth flow should redirect)
+      if (data?.url) {
+        // Redirect will happen automatically via Supabase
+        // Don't set loading to null here as user is being redirected
+      } else {
+        // No URL returned, something went wrong
+        toast.error(`OAuth ${provider} configuration error. Please check your Supabase settings.`);
+        setIsSocialLoading(null);
+      }
+    } catch (error: any) {
       console.error("Social login error:", error);
-      toast.error("An unexpected error occurred");
+      toast.error(error?.message || "An unexpected error occurred. Please try again.");
       setIsSocialLoading(null);
     }
   };

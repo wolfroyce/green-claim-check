@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { DarkModeToggle } from "@/components/ui/DarkModeToggle";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
@@ -17,17 +18,22 @@ import {
   Menu,
   X
 } from "lucide-react";
+import { formatUsageDisplay, getUsagePercentage, getEncouragingMessage, isUnlimited } from "@/lib/subscription-limits";
 
 interface AppHeaderProps {
   activeTab?: "scanner" | "history" | "reports" | "settings";
-  creditsRemaining?: number;
+  creditsRemaining?: number | null;
+  scansUsed?: number;
+  plan?: "free" | "starter" | "pro" | "enterprise";
   userName?: string;
   userInitials?: string;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   activeTab = "scanner",
-  creditsRemaining = 97,
+  creditsRemaining = null,
+  scansUsed = 0,
+  plan = "free",
   userName = "User",
   userInitials = "U",
 }) => {
@@ -82,6 +88,90 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const avatarColor = getAvatarColor(userInitials);
 
+  // Usage Display Component
+  const UsageDisplay: React.FC<{
+    plan: "free" | "starter" | "pro" | "enterprise";
+    scansUsed: number;
+    scansRemaining: number | null;
+    isMobile?: boolean;
+  }> = ({ plan, scansUsed, scansRemaining, isMobile = false }) => {
+    const usageText = formatUsageDisplay(plan, scansUsed, scansRemaining);
+    const usagePercentage = getUsagePercentage(plan, scansUsed);
+    const encouragingMessage = getEncouragingMessage(plan, scansRemaining);
+    const isUnlimitedPlan = isUnlimited(plan);
+
+    if (isMobile) {
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Usage
+            </span>
+            <span className="text-sm font-semibold text-primary">
+              {usageText}
+            </span>
+          </div>
+          {!isUnlimitedPlan && scansRemaining !== null && (
+            <div className="px-3">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all duration-500 ${
+                    usagePercentage >= 90
+                      ? "bg-danger"
+                      : usagePercentage >= 70
+                      ? "bg-accent"
+                      : "bg-success"
+                  }`}
+                  style={{ width: `${usagePercentage}%` }}
+                />
+              </div>
+              {encouragingMessage && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
+                  {encouragingMessage}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-3 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg min-w-[180px]">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">
+              {usageText}
+            </span>
+          </div>
+          {!isUnlimitedPlan && scansRemaining !== null && (
+            <>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${usagePercentage}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className={`h-1.5 rounded-full ${
+                    usagePercentage >= 90
+                      ? "bg-danger"
+                      : usagePercentage >= 70
+                      ? "bg-accent"
+                      : "bg-success"
+                  }`}
+                />
+              </div>
+              {encouragingMessage && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                  {encouragingMessage}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
       <div className="container mx-auto px-4">
@@ -122,12 +212,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
           {/* User Section (Right) - Desktop */}
           <div className="hidden md:flex items-center gap-4">
-            {/* Credits */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {creditsRemaining} scans left
-              </span>
-            </div>
+            {/* Usage Display */}
+            <UsageDisplay
+              plan={plan}
+              scansUsed={scansUsed}
+              scansRemaining={creditsRemaining}
+            />
 
             {/* Language & Dark Mode */}
             <LanguageToggle />
@@ -198,16 +288,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {/* Mobile Menu */}
         {showMobileMenu && (
           <div className="md:hidden border-t border-gray-200 dark:border-gray-800 py-4 animate-fade-in">
-            {/* Credits in Mobile Menu */}
+            {/* Usage in Mobile Menu */}
             <div className="px-4 mb-4">
-              <div className="flex items-center justify-between px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Credits
-                </span>
-                <span className="text-sm font-semibold text-primary">
-                  {creditsRemaining} scans left
-                </span>
-              </div>
+              <UsageDisplay
+                plan={plan}
+                scansUsed={scansUsed}
+                scansRemaining={creditsRemaining}
+                isMobile
+              />
             </div>
 
             {/* Navigation Tabs */}

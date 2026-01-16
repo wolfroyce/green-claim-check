@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -9,16 +9,8 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseAnonKey) {
-        return NextResponse.redirect(
-          new URL("/auth/login?error=Configuration error", requestUrl.origin)
-        );
-      }
-
-      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+      // Use Server Supabase Client to properly handle cookies
+      const supabase = createServerSupabaseClient();
       const { error } = await supabase.auth.exchangeCodeForSession(code);
 
       if (error) {
@@ -28,12 +20,29 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Success - redirect to app
-      return NextResponse.redirect(new URL(next, requestUrl.origin));
-    } catch (error) {
+      // Success - get the session to ensure it's set
+      const { data: { session: callbackSession } } = await supabase.auth.getSession();
+      
+      if (callbackSession) {
+        // Success - redirect to app with session in cookies
+        const response = NextResponse.redirect(new URL(next, requestUrl.origin));
+        
+        // Ensure cookies are set properly
+        // The session should already be in cookies from exchangeCodeForSession
+        // but we make sure by refreshing
+        return response;
+      } else {
+        // Session not found after exchange - this shouldn't happen
+        console.error('Session not found after code exchange');
+        return NextResponse.redirect(
+          new URL('/auth/login?error=Session not created', requestUrl.origin)
+        );
+      }
+    } catch (error: any) {
       console.error("Unexpected error in auth callback:", error);
+      const errorMessage = error?.message || "An unexpected error occurred";
       return NextResponse.redirect(
-        new URL("/auth/login?error=An unexpected error occurred", requestUrl.origin)
+        new URL(`/auth/login?error=${encodeURIComponent(errorMessage)}`, requestUrl.origin)
       );
     }
   }

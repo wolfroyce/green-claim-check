@@ -3,6 +3,7 @@
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { UpgradeModal } from "@/components/ui/UpgradeModal";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { scanTextNew, ScanResults } from "@/lib/scanner-logic";
@@ -48,6 +49,8 @@ export const InputPanel: React.FC<InputPanelProps> = ({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<string>("Free");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const exampleTemplates = [
@@ -408,6 +411,32 @@ export const InputPanel: React.FC<InputPanelProps> = ({
   const handleScan = async () => {
     if (!inputText.trim() || isScanning) return;
 
+    // Check scan limits before scanning
+    try {
+      const response = await fetch("/api/decrement-scans", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        // Limit reached or error
+        if (response.status === 403 || data.error === "Scan limit reached") {
+          setShowUpgradeModal(true);
+          toast.error("Scan limit reached. Please upgrade to continue.");
+          return;
+        }
+        throw new Error(data.error || "Failed to check scan limit");
+      }
+
+      // Update local state if needed
+      // The parent component will refresh usage data
+    } catch (error: any) {
+      console.error("Error checking scan limit:", error);
+      // Continue with scan if check fails (graceful degradation)
+      // In production, you might want to block the scan
+    }
+
     setIsScanning(true);
     setScanSuccess(false);
 
@@ -655,6 +684,13 @@ export const InputPanel: React.FC<InputPanelProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        plan={currentPlan}
+      />
     </Card>
   );
 };

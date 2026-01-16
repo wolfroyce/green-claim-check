@@ -1,17 +1,21 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { DarkModeToggle } from "@/components/ui/DarkModeToggle";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { scanText } from "@/lib/scanner-logic";
-import { Shield, CheckCircle, AlertTriangle, TrendingUp, Users, FileText, Zap, ArrowRight, ChevronDown, Euro, XCircle, Clipboard, Search, BarChart3, ShieldCheck, Leaf, Menu, X, Twitter, Linkedin, Github, Mail } from "lucide-react";
+import { createSupabaseClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
+import { Shield, CheckCircle, AlertTriangle, TrendingUp, Users, FileText, Zap, ArrowRight, ChevronDown, Euro, XCircle, Clipboard, Search, BarChart3, ShieldCheck, Leaf, Menu, X, Twitter, Linkedin, Github, Mail, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function LandingPage() {
   const { t } = useLanguage();
+  const router = useRouter();
   const [demoText, setDemoText] = useState("");
   const [demoResult, setDemoResult] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -19,6 +23,7 @@ export default function LandingPage() {
   const [isYearly, setIsYearly] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isCreatingCheckout, setIsCreatingCheckout] = useState<string | null>(null);
 
   const handleDemoScan = () => {
     if (!demoText.trim()) return;
@@ -61,6 +66,64 @@ export default function LandingPage() {
     "Eco-friendly packaging made from sustainable materials.",
     "Made with 80% recycled materials (certified GRS Standard).",
   ];
+
+  const handlePricingClick = async (plan: 'free' | 'starter' | 'pro' | 'enterprise') => {
+    // Free plan - redirect to signup
+    if (plan === 'free') {
+      router.push('/auth/signup');
+      return;
+    }
+
+    // Enterprise plan - redirect to contact
+    if (plan === 'enterprise') {
+      // TODO: Add contact form or email link
+      window.location.href = 'mailto:sales@greenclaimcheck.com?subject=Enterprise Inquiry';
+      return;
+    }
+
+    // Check if user is logged in
+    const supabase = createSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      // Redirect to login with redirect parameter
+      router.push(`/auth/login?redirect=/pricing`);
+      toast.info('Please sign in to subscribe');
+      return;
+    }
+
+    // Create checkout session
+    setIsCreatingCheckout(plan);
+    try {
+      const response = await fetch('/api/create-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan,
+          billingPeriod: isYearly ? 'yearly' : 'monthly',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      if (data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error: any) {
+      console.error('Error creating checkout:', error);
+      toast.error(error.message || 'Failed to start checkout. Please try again.');
+      setIsCreatingCheckout(null);
+    }
+  };
 
 
   return (
@@ -581,6 +644,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {[
               {
+                id: 'free' as const,
                 name: t.pricing.free.name,
                 monthlyPrice: 0,
                 yearlyPrice: 0,
@@ -590,6 +654,7 @@ export default function LandingPage() {
                 highlight: false,
               },
               {
+                id: 'starter' as const,
                 name: t.pricing.starter.name,
                 monthlyPrice: 29,
                 yearlyPrice: 23,
@@ -601,6 +666,7 @@ export default function LandingPage() {
                 highlight: false,
               },
               {
+                id: 'pro' as const,
                 name: t.pricing.pro.name,
                 monthlyPrice: 99,
                 yearlyPrice: 79,
@@ -613,6 +679,7 @@ export default function LandingPage() {
                 badge: t.pricing.pro.badge,
               },
               {
+                id: 'enterprise' as const,
                 name: t.pricing.enterprise.name,
                 price: "Custom",
                 features: t.pricing.enterprise.features,
@@ -706,12 +773,24 @@ export default function LandingPage() {
                           ? "bg-primary hover:bg-primary-dark" 
                           : "border-2 hover:border-primary hover:text-primary"
                       }`}
+                      onClick={() => handlePricingClick(plan.id)}
+                      isLoading={isCreatingCheckout === plan.id}
+                      disabled={isCreatingCheckout !== null}
                     >
-                      {plan.cta}
-                      {plan.trialDays && (
-                        <span className="ml-2 text-xs opacity-80">
-                          ({plan.trialDays} days)
-                        </span>
+                      {isCreatingCheckout === plan.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          {plan.cta}
+                          {plan.trialDays && (
+                            <span className="ml-2 text-xs opacity-80">
+                              ({plan.trialDays} days)
+                            </span>
+                          )}
+                        </>
                       )}
                     </Button>
                   </div>

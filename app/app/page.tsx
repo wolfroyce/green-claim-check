@@ -7,24 +7,66 @@ import { InputPanel } from "@/components/scanner/InputPanel";
 import { ResultsPanel } from "@/components/scanner/ResultsPanel";
 import { ScanResults } from "@/lib/scanner-logic";
 import { createSupabaseClient } from "@/lib/supabase/client";
-import { saveScan } from "@/lib/supabase/scans";
+import { saveScan, getUserScans, type ScanRecord } from "@/lib/supabase/scans";
+import { getUserSubscription, type UserSubscription } from "@/lib/supabase/subscriptions";
+import { getScanLimit, isUnlimited } from "@/lib/subscription-limits";
 import { toast } from "sonner";
 
 export default function AppPage() {
   const [inputText, setInputText] = useState("");
   const [results, setResults] = useState<ScanResults | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [scansUsed, setScansUsed] = useState(0);
+  const [scansRemaining, setScansRemaining] = useState<number | null>(null);
 
-  // Get current user
+  // Get current user, subscription, and usage data
   useEffect(() => {
-    const getCurrentUser = async () => {
+    const loadUserData = async () => {
       const supabase = createSupabaseClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
+
+        // Load subscription
+        const { data: subData } = await getUserSubscription(user.id);
+        setSubscription(subData);
+
+        // Calculate usage
+        const plan = (subData?.plan || 'free') as 'free' | 'starter' | 'pro' | 'enterprise';
+        
+        // Get scans from this month
+        const { data: scans } = await getUserScans(user.id);
+        const now = new Date();
+        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthlyScans = (scans || []).filter(
+          (scan: ScanRecord) => new Date(scan.created_at) >= thisMonthStart
+        );
+
+        setScansUsed(monthlyScans.length);
+
+        // Calculate remaining scans
+        if (isUnlimited(plan)) {
+          setScansRemaining(null);
+        } else {
+          const limit = getScanLimit(plan);
+          const remaining = subData?.scans_remaining ?? (limit - monthlyScans.length);
+          setScansRemaining(Math.max(0, remaining));
+        }
       }
     };
-    getCurrentUser();
+
+    loadUserData();
+
+    // Check for Stripe checkout success
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+    if (sessionId) {
+      toast.success('Subscription activated successfully!');
+      // Clean up URL and reload data
+      window.history.replaceState({}, '', '/app');
+      loadUserData();
+    }
   }, []);
 
   const handleScanComplete = async (scanResults: ScanResults) => {
@@ -39,6 +81,16 @@ export default function AppPage() {
           toast.error("Failed to save scan to history");
         } else {
           toast.success("Scan saved to history");
+          
+          // Refresh usage data
+          const { data: subData } = await getUserSubscription(userId);
+          setSubscription(subData);
+          
+          const plan = (subData?.plan || 'free') as 'free' | 'starter' | 'pro' | 'enterprise';
+          if (!isUnlimited(plan)) {
+            setScansRemaining(subData?.scans_remaining ?? 0);
+          }
+          setScansUsed(prev => prev + 1);
         }
       } catch (error) {
         console.error("Unexpected error saving scan:", error);
@@ -57,9 +109,11 @@ export default function AppPage() {
     >
       <AppHeader
         activeTab="scanner"
-        creditsRemaining={97}
-        userName="John Doe"
-        userInitials="JD"
+        creditsRemaining={scansRemaining}
+        scansUsed={scansUsed}
+        plan={subscription?.plan || "free"}
+        userName="User"
+        userInitials="U"
       />
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">

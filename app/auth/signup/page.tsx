@@ -57,6 +57,12 @@ export default function SignupPage() {
     setIsLoading(true);
     try {
       const supabase = createSupabaseClient();
+      
+      // Validate Supabase client was created successfully
+      if (!supabase) {
+        throw new Error('Failed to initialize Supabase client. Please check your configuration.');
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -64,21 +70,48 @@ export default function SignupPage() {
           data: {
             name: formData.name,
           },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
       if (error) {
-        toast.error(error.message || "Failed to create account");
+        console.error('Signup error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name,
+        });
+        
+        // Provide more specific error messages
+        let errorMessage = error.message || "Failed to create account";
+        if (error.message?.includes('already registered')) {
+          errorMessage = "This email is already registered. Please sign in instead.";
+        } else if (error.message?.includes('Invalid email')) {
+          errorMessage = "Please enter a valid email address.";
+        } else if (error.message?.includes('Password')) {
+          errorMessage = "Password does not meet requirements.";
+        }
+        
+        toast.error(errorMessage);
+        setIsLoading(false);
         return;
       }
 
       if (data.user) {
-        toast.success("Account created successfully! Please check your email to verify your account.");
-        router.push("/auth/login");
+        // Check if email confirmation is required
+        if (data.session) {
+          // User is automatically signed in (if email confirmation is disabled in Supabase)
+          toast.success("Account created successfully!");
+          router.push("/app");
+          router.refresh();
+        } else {
+          // Email confirmation required
+          toast.success("Account created! Please check your email to verify your account.");
+          router.push("/auth/login");
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Signup error:", error);
-      toast.error("An unexpected error occurred");
+      toast.error(error?.message || "An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -88,20 +121,37 @@ export default function SignupPage() {
     setIsSocialLoading(provider);
     try {
       const supabase = createSupabaseClient();
-      const { error } = await supabase.auth.signInWithOAuth({
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/app`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
       if (error) {
+        console.error(`OAuth ${provider} error:`, error);
         toast.error(error.message || `Failed to sign in with ${provider}`);
         setIsSocialLoading(null);
+        return;
       }
-    } catch (error) {
+
+      // Check if we got a URL (OAuth flow should redirect)
+      if (data?.url) {
+        // Redirect will happen automatically via Supabase
+        // Don't set loading to null here as user is being redirected
+      } else {
+        // No URL returned, something went wrong
+        toast.error(`OAuth ${provider} configuration error. Please check your Supabase settings.`);
+        setIsSocialLoading(null);
+      }
+    } catch (error: any) {
       console.error("Social login error:", error);
-      toast.error("An unexpected error occurred");
+      toast.error(error?.message || "An unexpected error occurred. Please try again.");
       setIsSocialLoading(null);
     }
   };

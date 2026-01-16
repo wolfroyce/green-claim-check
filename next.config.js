@@ -13,6 +13,9 @@ const nextConfig = {
     }
     return config;
   },
+  // Note: In Next.js 14 with App Router, body parsing is handled automatically
+  // For webhooks that need raw body access, configure it in the route handler
+  // using: export const config = { api: { bodyParser: false } }
 };
 
 module.exports = nextConfig;
