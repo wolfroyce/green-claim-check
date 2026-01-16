@@ -1,18 +1,50 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { AppHeader } from "@/components/AppHeader";
 import { InputPanel } from "@/components/scanner/InputPanel";
 import { ResultsPanel } from "@/components/scanner/ResultsPanel";
 import { ScanResults } from "@/lib/scanner-logic";
+import { createSupabaseClient } from "@/lib/supabase/client";
+import { saveScan } from "@/lib/supabase/scans";
+import { toast } from "sonner";
 
 export default function AppPage() {
   const [inputText, setInputText] = useState("");
   const [results, setResults] = useState<ScanResults | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const handleScanComplete = (scanResults: ScanResults) => {
+  // Get current user
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const supabase = createSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    getCurrentUser();
+  }, []);
+
+  const handleScanComplete = async (scanResults: ScanResults) => {
     setResults(scanResults);
+    
+    // Save scan to database if user is logged in
+    if (userId) {
+      try {
+        const { error } = await saveScan(userId, scanResults);
+        if (error) {
+          console.error("Error saving scan:", error);
+          toast.error("Failed to save scan to history");
+        } else {
+          toast.success("Scan saved to history");
+        }
+      } catch (error) {
+        console.error("Unexpected error saving scan:", error);
+        toast.error("Failed to save scan to history");
+      }
+    }
   };
 
   return (
