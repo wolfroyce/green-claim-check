@@ -100,7 +100,6 @@ export default function SettingsPage() {
             free: 3,
             starter: 100,
             pro: Infinity,
-            enterprise: Infinity,
           };
 
           const limit = planLimits[plan] || 3;

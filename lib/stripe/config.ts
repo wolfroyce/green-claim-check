@@ -36,9 +36,6 @@ export const STRIPE_PRICE_IDS = {
   // Pro plan
   PRO_MONTHLY: process.env.STRIPE_PRICE_PRO_MONTHLY || 'price_pro_monthly',
   PRO_YEARLY: process.env.STRIPE_PRICE_PRO_YEARLY || 'price_pro_yearly',
-  
-  // Enterprise plan - custom pricing, no price ID
-  ENTERPRISE: null,
 } as const;
 
 // Helper function to get price ID based on plan and billing period

@@ -1,4 +1,4 @@
-export type PlanType = 'free' | 'starter' | 'pro' | 'enterprise';
+export type PlanType = 'free' | 'starter' | 'pro';
 
 export interface PlanLimits {
   scansPerMonth: number; // Infinity for unlimited
@@ -17,10 +17,6 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   pro: {
     scansPerMonth: Infinity,
     name: 'Pro',
-  },
-  enterprise: {
-    scansPerMonth: Infinity,
-    name: 'Enterprise',
   },
 };
 

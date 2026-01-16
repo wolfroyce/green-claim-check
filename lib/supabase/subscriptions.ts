@@ -6,7 +6,7 @@ export interface UserSubscription {
   stripe_subscription_id: string | null;
   stripe_customer_id: string | null;
   status: 'active' | 'canceled' | 'past_due' | 'inactive' | 'trialing';
-  plan: 'free' | 'starter' | 'pro' | 'enterprise';
+  plan: 'free' | 'starter' | 'pro';
   billing_period: 'monthly' | 'yearly';
   current_period_start: string | null;
   current_period_end: string | null;

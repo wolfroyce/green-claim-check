@@ -8,8 +8,6 @@ import { DarkModeToggle } from "@/components/ui/DarkModeToggle";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { scanText } from "@/lib/scanner-logic";
-import { createSupabaseClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
 import { Shield, CheckCircle, AlertTriangle, TrendingUp, Users, FileText, Zap, ArrowRight, ChevronDown, Euro, XCircle, Clipboard, Search, BarChart3, ShieldCheck, Leaf, Menu, X, Twitter, Linkedin, Github, Mail, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -20,10 +18,8 @@ export default function LandingPage() {
   const [demoResult, setDemoResult] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [showFAQ, setShowFAQ] = useState<number | null>(null);
-  const [isYearly, setIsYearly] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isCreatingCheckout, setIsCreatingCheckout] = useState<string | null>(null);
 
   const handleDemoScan = () => {
     if (!demoText.trim()) return;
@@ -37,10 +33,8 @@ export default function LandingPage() {
   };
 
   const scrollToDemo = () => {
-    const demoSection = document.getElementById("demo-section");
-    if (demoSection) {
-      demoSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    // Demo is now in hero section, just scroll to top
+    window.scrollTo({ top: 0, behavior: "smooth" });
     setIsMobileMenuOpen(false);
   };
 
@@ -67,63 +61,6 @@ export default function LandingPage() {
     "Made with 80% recycled materials (certified GRS Standard).",
   ];
 
-  const handlePricingClick = async (plan: 'free' | 'starter' | 'pro' | 'enterprise') => {
-    // Free plan - redirect to signup
-    if (plan === 'free') {
-      router.push('/auth/signup');
-      return;
-    }
-
-    // Enterprise plan - redirect to contact
-    if (plan === 'enterprise') {
-      // TODO: Add contact form or email link
-      window.location.href = 'mailto:sales@greenclaimcheck.com?subject=Enterprise Inquiry';
-      return;
-    }
-
-    // Check if user is logged in
-    const supabase = createSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session) {
-      // Redirect to login with redirect parameter
-      router.push(`/auth/login?redirect=/pricing`);
-      toast.info('Please sign in to subscribe');
-      return;
-    }
-
-    // Create checkout session
-    setIsCreatingCheckout(plan);
-    try {
-      const response = await fetch('/api/create-checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          plan,
-          billingPeriod: isYearly ? 'yearly' : 'monthly',
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      if (data.url) {
-        // Redirect to Stripe Checkout
-        window.location.href = data.url;
-      } else {
-        throw new Error('No checkout URL returned');
-      }
-    } catch (error: any) {
-      console.error('Error creating checkout:', error);
-      toast.error(error.message || 'Failed to start checkout. Please try again.');
-      setIsCreatingCheckout(null);
-    }
-  };
 
 
   return (
@@ -154,12 +91,12 @@ export default function LandingPage() {
               >
                 {t.nav.features}
               </button>
-              <button
-                onClick={() => scrollToSection("pricing-section")}
+              <Link
+                href="/pricing"
                 className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
               >
                 {t.nav.pricing}
-              </button>
+              </Link>
               <a
                 href="#"
                 className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
@@ -218,12 +155,12 @@ export default function LandingPage() {
                 >
                   {t.nav.features}
                 </button>
-                <button
-                  onClick={() => scrollToSection("pricing-section")}
-                  className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
+                <Link
+                  href="/pricing"
+                  className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2 block"
                 >
                   {t.nav.pricing}
-                </button>
+                </Link>
                 <a
                   href="#"
                   className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
@@ -259,51 +196,235 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="gradient-hero text-white py-24 md:py-40 relative overflow-hidden">
+      <section className="gradient-hero text-white py-16 md:py-24 relative overflow-hidden">
         {/* Subtle grid pattern overlay is handled in CSS via ::before */}
         
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <div className="hero-content-box max-w-5xl mx-auto">
-            <div className="rounded-[22px] p-8 md:p-12 lg:p-16">
-              <div className="fade-in-up">
-                <h1 className="mb-8 md:mb-10 lg:mb-12 text-balance text-white drop-shadow-lg">
-                  {t.hero.headline}
-                </h1>
+        <div className="container mx-auto px-4 relative z-10">
+          {/* Badge oben */}
+          <div className="text-center mb-6 fade-in-up">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-2 text-xs md:text-sm font-medium text-white/90">
+              <CheckCircle className="w-4 h-4 text-white" />
+              <span>{t.hero.trustBadge || "Basierend auf EU-Richtlinie 2024/825"}</span>
+            </div>
+          </div>
+
+          {/* Hero Headline & Subheadline */}
+          <div className="text-center mb-8 md:mb-10 max-w-4xl mx-auto">
+            <div className="fade-in-up">
+              <h1 className="mb-6 md:mb-8 text-4xl md:text-5xl lg:text-6xl font-bold text-balance text-white drop-shadow-lg leading-tight">
+                Vermeiden Sie Bußgelder bis zu €40.000<br />
+                für Greenwashing-Verstöße
+              </h1>
+            </div>
+            
+            <div className="fade-in-up-delay-1">
+              <p className="text-lg md:text-xl text-white/95 max-w-3xl mx-auto text-balance mb-8 leading-relaxed">
+                Prüfen Sie Ihre Marketing-Aussagen automatisch auf EU-Compliance – in Sekunden, nicht Stunden.
+              </p>
+            </div>
+          </div>
+
+          {/* Primary CTA mit Trust Signals */}
+          <div className="flex flex-col items-center gap-4 mb-8 fade-in-up-delay-2">
+            <Link href="/app" className="w-full max-w-md">
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full py-5 px-8 text-lg md:text-xl font-bold shadow-2xl hover:shadow-primary/40 hover:scale-[1.02] transition-all duration-300"
+              >
+                {t.hero.cta || "Jetzt kostenlos prüfen"}
+                <ArrowRight className="w-6 h-6 ml-3 inline" />
+              </Button>
+            </Link>
+            <div className="flex items-center gap-4 text-sm text-white/80 flex-wrap justify-center">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4" />
+                <span>Keine Anmeldung nötig</span>
               </div>
-              
-              <div className="fade-in-up-delay-1">
-                <p className="text-hero mb-12 md:mb-14 lg:mb-16 text-white/95 max-w-4xl mx-auto text-balance">
-                  {t.hero.subheadline}
-                </p>
-              </div>
-              
-              <div className="fade-in-up-delay-2 flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-                <button
-                  onClick={scrollToDemo}
-                  className="cta-button-glow group relative px-8 py-4 bg-accent hover:bg-accent-dark text-white font-semibold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-0.5"
-                >
-                  <span className="relative z-10 flex items-center gap-2">
-                    {t.hero.cta}
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
-                  </span>
-                </button>
-                
-                <Link href="/app">
-                  <Button 
-                    variant="outline" 
-                    size="lg" 
-                    className="w-full sm:w-auto bg-white/10 border-2 border-white/30 text-white hover:bg-white/20 hover:border-white/50 backdrop-blur-sm px-8 py-4 text-lg font-semibold transition-all duration-300"
-                  >
-                    {t.nav.tryFree}
-                  </Button>
-                </Link>
-              </div>
-              
-              <div className="fade-in-up-delay-3 flex items-center justify-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-6 py-3 w-fit mx-auto">
-                <CheckCircle className="w-5 h-5 text-white" />
-                <span className="text-sm md:text-base font-medium">{t.hero.trustBadge}</span>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4" />
+                <span>Ergebnis in 30 Sekunden</span>
               </div>
             </div>
+            <Link href="#features-section" className="text-sm text-white/80 hover:text-white transition-colors underline underline-offset-4">
+              Wie es funktioniert →
+            </Link>
+          </div>
+
+          {/* Social Proof */}
+          <div className="text-center mb-10 md:mb-12 fade-in-up-delay-3">
+            <p className="text-sm md:text-base text-white/80 mb-2">
+              {t.hero.socialProof || "💬 Vertraut von 500+ Marketing-Teams in der EU"}
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              <div className="flex -space-x-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className="w-8 h-8 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xs font-bold text-white"
+                  >
+                    {String.fromCharCode(65 + i)}
+                  </div>
+                ))}
+              </div>
+              <span className="text-sm text-white/90 ml-2">⭐⭐⭐⭐⭐ 4.8/5</span>
+            </div>
+          </div>
+
+          {/* Prominent Interactive Demo */}
+          <div className="max-w-5xl mx-auto fade-in-up-delay-4">
+            <Card variant="elevated" className="bg-white dark:bg-gray-800 shadow-2xl border-2 border-primary/20">
+              <div className="p-6 md:p-8">
+                <h2 className="text-xl md:text-2xl font-bold mb-4 text-gray-900 dark:text-white text-center">
+                  Live-Demo: Testen Sie jetzt
+                </h2>
+                <div className="mb-4">
+                  <textarea
+                    value={demoText}
+                    onChange={(e) => {
+                      const text = e.target.value.slice(0, 250);
+                      setDemoText(text);
+                    }}
+                    placeholder={t.demo.placeholder || "Unser Produkt ist 100% klimaneutral und aus recycelten Materialien hergestellt..."}
+                    className="w-full h-40 md:h-48 p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white resize-none text-gray-900 text-base shadow-inner transition-all duration-200"
+                  />
+                  {/* Zeichenlimit NICHT anzeigen - nur intern limitiert */}
+                </div>
+                
+                <div className="flex flex-wrap gap-2 mb-4 justify-center">
+                  <span className="text-xs text-gray-500 mr-2">💡 Beispiele probieren:</span>
+                  {exampleTexts.map((text, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setDemoText(text.slice(0, 250))}
+                      className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600"
+                    >
+                      {text.slice(0, 30)}...
+                    </button>
+                  ))}
+                </div>
+                
+                <Button
+                  onClick={handleDemoScan}
+                  isLoading={isScanning}
+                  className="w-full py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                  disabled={!demoText.trim()}
+                  variant="primary"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Scanne...
+                    </>
+                  ) : (
+                    <>
+                      Compliance prüfen →
+                    </>
+                  )}
+                </Button>
+              </div>
+            </Card>
+
+            {/* Demo Result - Smart Popup mit Teaser und Nudge zur Anmeldung */}
+            {demoResult && (
+              <Card variant="elevated" className="mt-6 animate-slide-up bg-white dark:bg-gray-800 shadow-2xl border-2 border-primary/20 relative overflow-hidden">
+                <div className="p-6 md:p-8 space-y-4">
+                  <div className="text-center pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <CheckCircle className="w-6 h-6 text-success" />
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Ihr Scan ist fertig!</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Hier ist eine Vorschau Ihrer Ergebnisse
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-gradient-to-r from-danger/10 via-accent/10 to-success/10 p-4 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Risiko-Score</p>
+                      <div className="flex items-baseline gap-2">
+                        <span
+                          className={`text-3xl font-bold ${
+                            demoResult.score >= 70
+                              ? "text-danger"
+                              : demoResult.score >= 40
+                              ? "text-accent"
+                              : "text-success"
+                          }`}
+                        >
+                          {demoResult.score}%
+                        </span>
+                        <span className={`text-sm font-semibold ${
+                          demoResult.score >= 70 ? "text-danger" : demoResult.score >= 40 ? "text-accent" : "text-success"
+                        }`}>
+                          {demoResult.score >= 70 ? "(Hoch)" : demoResult.score >= 40 ? "(Mittel)" : "(Niedrig)"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Potenzielle Verstöße</p>
+                      <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                        {demoResult.criticalCount + demoResult.warningCount + demoResult.minorCount}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Blurred Details - Nudge zur Anmeldung */}
+                  <div className="relative">
+                    <div className="blur-sm select-none pointer-events-none opacity-60">
+                      <div className="grid grid-cols-3 gap-4 text-center mb-4">
+                        <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                          <span className="text-danger font-bold text-lg">{demoResult.criticalCount}</span>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{t.demo.critical}</p>
+                        </div>
+                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                          <span className="text-accent font-bold text-lg">{demoResult.warningCount}</span>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{t.demo.warnings}</p>
+                        </div>
+                        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                          <span className="text-success font-bold text-lg">{demoResult.minorCount}</span>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{t.demo.minor}</p>
+                        </div>
+                      </div>
+                      {demoResult.findings.length > 0 && (
+                        <div className="space-y-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <h4 className="font-semibold text-gray-900 dark:text-white">{t.demo.flaggedTerms}:</h4>
+                          {demoResult.findings.slice(0, 3).map((f: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm text-gray-900 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
+                            >
+                              <span className="font-mono font-semibold">"{f.term}"</span> - <span className="capitalize">{f.severity}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Overlay mit CTA */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg">
+                      <div className="text-center p-6 max-w-md">
+                        <Shield className="w-12 h-12 text-primary mx-auto mb-4" />
+                        <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                          Detaillierte Analyse verfügbar
+                        </h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                          Erhalten Sie vollständige Ergebnisse mit Handlungsempfehlungen, PDF-Bericht und konkreten Lösungsvorschlägen.
+                        </p>
+                        <Link href="/app">
+                          <Button variant="primary" className="w-full py-4 text-lg font-semibold shadow-lg mb-3">
+                            Kostenlos registrieren für vollständigen Bericht →
+                          </Button>
+                        </Link>
+                        <Link href="#features-section" className="text-sm text-primary hover:underline">
+                          Beispiel-Bericht ansehen
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </section>
@@ -505,302 +626,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Interactive Demo */}
-      <section id="demo-section" className="py-16 bg-white dark:bg-gray-800 scroll-mt-20">
-        <div className="container mx-auto px-4">
-          <h2 className="text-center mb-12 md:mb-16">
-            {t.demo.title}
-          </h2>
-          <div className="max-w-4xl mx-auto">
-            <Card variant="elevated">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    {t.demo.charLimit}
-                  </label>
-                  <textarea
-                    value={demoText}
-                    onChange={(e) => {
-                      const text = e.target.value.slice(0, 500);
-                      setDemoText(text);
-                    }}
-                    placeholder={t.demo.placeholder}
-                    className="w-full h-32 p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
-                  />
-                  <div className="text-sm text-gray-500 mt-1 text-right">
-                    {demoText.length}/500
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {exampleTexts.map((text, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setDemoText(text.slice(0, 500))}
-                      className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      {text.slice(0, 30)}...
-                    </button>
-                  ))}
-                </div>
-                <Button
-                  onClick={handleDemoScan}
-                  isLoading={isScanning}
-                  className="w-full"
-                  disabled={!demoText.trim()}
-                >
-                  {t.demo.scanNow}
-                </Button>
-              </div>
-            </Card>
-
-            {demoResult && (
-              <Card variant="elevated" className="mt-6 animate-slide-up">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-semibold">{t.demo.results}</h3>
-                    <span
-                      className={`text-lg font-bold ${
-                        demoResult.score >= 70
-                          ? "text-danger"
-                          : demoResult.score >= 40
-                          ? "text-accent"
-                          : "text-success"
-                      }`}
-                    >
-                      {t.demo.risk}: {demoResult.score}%
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-danger font-semibold">{t.demo.critical}: </span>
-                      {demoResult.criticalCount}
-                    </div>
-                    <div>
-                      <span className="text-accent font-semibold">{t.demo.warnings}: </span>
-                      {demoResult.warningCount}
-                    </div>
-                    <div>
-                      <span className="text-success font-semibold">{t.demo.minor}: </span>
-                      {demoResult.minorCount}
-                    </div>
-                  </div>
-                  {demoResult.findings.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="font-semibold">{t.demo.flaggedTerms}:</h4>
-                      {demoResult.findings.slice(0, 3).map((f: any, idx: number) => (
-                        <div
-                          key={idx}
-                          className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-sm"
-                        >
-                          <span className="font-mono">"{f.term}"</span> - {f.severity}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <Link href="/app">
-                    <Button variant="primary" className="w-full">
-                      {t.demo.getFullAnalysis} <ArrowRight className="w-4 h-4 ml-2 inline" />
-                    </Button>
-                  </Link>
-                </div>
-              </Card>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing-section" className="py-20 md:py-24 bg-gray-50 dark:bg-gray-900 scroll-mt-20">
-        <div className="container mx-auto px-4">
-          <h2 className="text-center mb-12 md:mb-16">
-            {t.pricing.title}
-          </h2>
-          
-          {/* Billing Toggle */}
-          <div className="flex items-center justify-center gap-4 mb-12">
-            <span className={`text-sm font-medium ${!isYearly ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
-              {t.pricing.monthly}
-            </span>
-            <button
-              onClick={() => setIsYearly(!isYearly)}
-              className="relative w-14 h-8 bg-gray-200 dark:bg-gray-700 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-            >
-              <div
-                className={`absolute top-1 left-1 w-6 h-6 bg-white dark:bg-gray-300 rounded-full shadow-md transform transition-transform duration-300 ${
-                  isYearly ? "translate-x-6" : "translate-x-0"
-                }`}
-              />
-            </button>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${isYearly ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
-                {t.pricing.yearly}
-              </span>
-              <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">
-                {t.pricing.save}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-            {[
-              {
-                id: 'free' as const,
-                name: t.pricing.free.name,
-                monthlyPrice: 0,
-                yearlyPrice: 0,
-                features: t.pricing.free.features,
-                cta: t.pricing.free.cta,
-                popular: false,
-                highlight: false,
-              },
-              {
-                id: 'starter' as const,
-                name: t.pricing.starter.name,
-                monthlyPrice: 29,
-                yearlyPrice: 23,
-                period: "/month",
-                features: t.pricing.starter.features,
-                cta: t.pricing.starter.cta,
-                trialDays: 14,
-                popular: false,
-                highlight: false,
-              },
-              {
-                id: 'pro' as const,
-                name: t.pricing.pro.name,
-                monthlyPrice: 99,
-                yearlyPrice: 79,
-                period: "/month",
-                features: t.pricing.pro.features,
-                cta: t.pricing.pro.cta,
-                trialDays: 14,
-                popular: true,
-                highlight: true,
-                badge: t.pricing.pro.badge,
-              },
-              {
-                id: 'enterprise' as const,
-                name: t.pricing.enterprise.name,
-                price: "Custom",
-                features: t.pricing.enterprise.features,
-                cta: t.pricing.enterprise.cta,
-                popular: false,
-                highlight: false,
-              },
-            ].map((plan, idx) => {
-              const displayPrice = plan.price === "Custom" 
-                ? "Custom" 
-                : isYearly 
-                  ? `€${plan.yearlyPrice}` 
-                  : `€${plan.monthlyPrice}`;
-              
-              const originalPrice = plan.price === "Custom" 
-                ? null 
-                : isYearly && plan.monthlyPrice 
-                  ? plan.monthlyPrice 
-                  : null;
-
-              return (
-                <div
-                  key={idx}
-                  className={`group relative bg-white dark:bg-gray-800 rounded-xl border transition-all duration-300 hover:scale-[1.02] hover:shadow-md ${
-                    plan.highlight
-                      ? "border-primary/60 shadow-md scale-[1.02]"
-                      : "border-gray-200 dark:border-gray-700 shadow-sm hover:border-primary/40"
-                  }`}
-                >
-                  {plan.highlight && plan.badge && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-white text-xs font-bold rounded-full shadow-md">
-                      {plan.badge}
-                    </div>
-                  )}
-
-                  <div className="p-8">
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                      <h3 className={`text-xl font-bold mb-4 ${plan.highlight ? "text-primary" : "text-gray-900 dark:text-white"}`}>
-                        {plan.name}
-                      </h3>
-                      <div className="mb-2">
-                        {plan.price === "Custom" ? (
-                          <div className="text-4xl font-bold text-gray-900 dark:text-white">
-                            {plan.price}
-                          </div>
-                        ) : (
-                          <div className="flex items-baseline justify-center gap-2">
-                            <span className="text-4xl font-bold text-gray-900 dark:text-white">
-                              {displayPrice}
-                            </span>
-                            {plan.period && (
-                              <span className="text-lg text-gray-500 dark:text-gray-400">
-                                {plan.period}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {originalPrice && (
-                          <div className="flex items-center justify-center gap-2 mt-2">
-                            <span className="text-lg text-gray-400 dark:text-gray-500 line-through">
-                              €{originalPrice}
-                            </span>
-                            <span className="text-sm text-primary font-semibold">
-                              Save {Math.round((1 - (plan.yearlyPrice! / plan.monthlyPrice!)) * 100)}%
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Features */}
-                    <ul className="space-y-4 mb-8">
-                      {plan.features.map((feature, fIdx) => (
-                        <li key={fIdx} className="flex items-start gap-3">
-                          <CheckCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                            plan.highlight ? "text-primary" : "text-success"
-                          }`} />
-                          <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                            {feature}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* CTA Button */}
-                    <Button
-                      variant={plan.highlight ? "primary" : "outline"}
-                      className={`w-full ${
-                        plan.highlight 
-                          ? "bg-primary hover:bg-primary-dark" 
-                          : "border-2 hover:border-primary hover:text-primary"
-                      }`}
-                      onClick={() => handlePricingClick(plan.id)}
-                      isLoading={isCreatingCheckout === plan.id}
-                      disabled={isCreatingCheckout !== null}
-                    >
-                      {isCreatingCheckout === plan.id ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          {plan.cta}
-                          {plan.trialDays && (
-                            <span className="ml-2 text-xs opacity-80">
-                              ({plan.trialDays} days)
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
       {/* FAQ */}
       <section className="py-16 bg-white dark:bg-gray-800">
         <div className="container mx-auto px-4 max-w-3xl">
@@ -852,13 +677,13 @@ export default function LandingPage() {
                   </button>
                 </li>
                 <li>
-                  <button
-                    onClick={() => scrollToSection("pricing-section")}
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group"
+                  <Link
+                    href="/pricing"
+                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
                   >
                     Pricing
                     <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </button>
+                  </Link>
                 </li>
                 <li>
                   <a

@@ -33,7 +33,7 @@ export default function AppPage() {
         setSubscription(subData);
 
         // Calculate usage
-        const plan = (subData?.plan || 'free') as 'free' | 'starter' | 'pro' | 'enterprise';
+        const plan = (subData?.plan || 'free') as 'free' | 'starter' | 'pro';
         
         // Get scans from this month
         const { data: scans } = await getUserScans(user.id);
@@ -86,7 +86,7 @@ export default function AppPage() {
           const { data: subData } = await getUserSubscription(userId);
           setSubscription(subData);
           
-          const plan = (subData?.plan || 'free') as 'free' | 'starter' | 'pro' | 'enterprise';
+          const plan = (subData?.plan || 'free') as 'free' | 'starter' | 'pro';
           if (!isUnlimited(plan)) {
             setScansRemaining(subData?.scans_remaining ?? 0);
           }

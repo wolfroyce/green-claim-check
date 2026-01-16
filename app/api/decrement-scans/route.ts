@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       console.error('Error fetching subscription:', subError);
     }
 
-    const plan = (subscription?.plan || 'free') as 'free' | 'starter' | 'pro' | 'enterprise';
+    const plan = (subscription?.plan || 'free') as 'free' | 'starter' | 'pro';
 
     // Check if unlimited
     if (isUnlimited(plan)) {

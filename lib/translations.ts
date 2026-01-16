@@ -16,6 +16,7 @@ export interface Translations {
     subheadline: string;
     cta: string;
     trustBadge: string;
+    socialProof?: string;
   };
   // Problem Section
   problem: {
@@ -92,11 +93,6 @@ export interface Translations {
       trial: string;
       badge: string;
     };
-    enterprise: {
-      name: string;
-      features: string[];
-      cta: string;
-    };
   };
   // FAQ
   faq: {
@@ -148,10 +144,11 @@ export const translations: Record<Language, Translations> = {
       tryFree: "Try Free",
     },
     hero: {
-      headline: "Don't Get Fined for Greenwashing",
-      subheadline: "Validate your marketing claims against EU regulations. €40,000+ fines start September 2026.",
-      cta: "Try Free Scanner",
-      trustBadge: "EU Directive 2024/825 Compliant",
+      headline: "Vermeiden Sie Bußgelder bis zu €40.000\nfür Greenwashing-Verstöße",
+      subheadline: "Prüfen Sie Ihre Marketing-Aussagen automatisch auf EU-Compliance – in Sekunden, nicht Stunden.",
+      cta: "Jetzt kostenlos prüfen",
+      trustBadge: "Basierend auf EU-Richtlinie 2024/825",
+      socialProof: "Vertraut von 500+ Marketing-Teams in der EU",
     },
     problem: {
       title: "The Greenwashing Crisis",
@@ -191,7 +188,7 @@ export const translations: Record<Language, Translations> = {
     demo: {
       title: "Try It Free",
       placeholder: "Paste your marketing text here...",
-      charLimit: "Enter your marketing text (500 char limit for demo)",
+      charLimit: "Enter your marketing text (250 char limit for demo)",
       scanNow: "Scan Now",
       results: "Results",
       risk: "Risk",
@@ -223,11 +220,6 @@ export const translations: Record<Language, Translations> = {
         cta: "Start Trial",
         trial: "14 days",
         badge: "MOST POPULAR",
-      },
-      enterprise: {
-        name: "ENTERPRISE",
-        features: ["Everything in Pro", "Legal review", "White label", "SLA"],
-        cta: "Contact Sales",
       },
     },
     faq: {
@@ -293,10 +285,11 @@ export const translations: Record<Language, Translations> = {
       tryFree: "Kostenlos testen",
     },
     hero: {
-      headline: "Keine Bußgelder für Greenwashing",
-      subheadline: "Prüfen Sie Ihre Marketing-Aussagen gegen EU-Vorschriften. Ab September 2026 drohen Bußgelder von über €40.000.",
-      cta: "Kostenlos testen",
-      trustBadge: "EU-Richtlinie 2024/825 konform",
+      headline: "Vermeiden Sie Bußgelder bis zu €40.000\nfür Greenwashing-Verstöße",
+      subheadline: "Prüfen Sie Ihre Marketing-Aussagen automatisch auf EU-Compliance – in Sekunden, nicht Stunden.",
+      cta: "Jetzt kostenlos prüfen",
+      trustBadge: "Basierend auf EU-Richtlinie 2024/825",
+      socialProof: "Vertraut von 500+ Marketing-Teams in der EU",
     },
     problem: {
       title: "Die Greenwashing-Krise",
@@ -336,7 +329,7 @@ export const translations: Record<Language, Translations> = {
     demo: {
       title: "Kostenlos testen",
       placeholder: "Fügen Sie hier Ihren Marketing-Text ein...",
-      charLimit: "Geben Sie Ihren Marketing-Text ein (500 Zeichen Limit für Demo)",
+      charLimit: "Geben Sie Ihren Marketing-Text ein (250 Zeichen Limit für Demo)",
       scanNow: "Jetzt scannen",
       results: "Ergebnisse",
       risk: "Risiko",
@@ -368,11 +361,6 @@ export const translations: Record<Language, Translations> = {
         cta: "Test starten",
         trial: "14 Tage",
         badge: "BELIEBTEST",
-      },
-      enterprise: {
-        name: "ENTERPRISE",
-        features: ["Alles aus Pro", "Rechtliche Prüfung", "White Label", "SLA"],
-        cta: "Vertrieb kontaktieren",
       },
     },
     faq: {

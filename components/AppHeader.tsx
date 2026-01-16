@@ -24,7 +24,7 @@ interface AppHeaderProps {
   activeTab?: "scanner" | "history" | "reports" | "settings";
   creditsRemaining?: number | null;
   scansUsed?: number;
-  plan?: "free" | "starter" | "pro" | "enterprise";
+  plan?: "free" | "starter" | "pro";
   userName?: string;
   userInitials?: string;
 }
@@ -90,7 +90,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   // Usage Display Component
   const UsageDisplay: React.FC<{
-    plan: "free" | "starter" | "pro" | "enterprise";
+    plan: "free" | "starter" | "pro";
     scansUsed: number;
     scansRemaining: number | null;
     isMobile?: boolean;
