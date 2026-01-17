@@ -63,14 +63,18 @@ export default function SignupPage() {
         throw new Error('Failed to initialize Supabase client. Please check your configuration.');
       }
 
+      // Get demo text from sessionStorage if available
+      const demoText = sessionStorage.getItem('demoTextForScan');
+      
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
             name: formData.name,
+            demoText: demoText || null, // Store demo text in user metadata
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback${demoText ? `?demoText=${encodeURIComponent(demoText)}` : ''}`,
         },
       });
 
@@ -101,10 +105,15 @@ export default function SignupPage() {
         if (data.session) {
           // User is automatically signed in (if email confirmation is disabled in Supabase)
           toast.success("Account created successfully!");
-          router.push("/app");
+          // If demo text exists, redirect with auto-scan parameter
+          if (demoText) {
+            router.push(`/app?autoScan=true&demoText=${encodeURIComponent(demoText)}`);
+          } else {
+            router.push("/app");
+          }
           router.refresh();
         } else {
-          // Email confirmation required
+          // Email confirmation required - demo text will be in the callback URL from emailRedirectTo
           toast.success("Account created! Please check your email to verify your account.");
           router.push("/auth/login");
         }

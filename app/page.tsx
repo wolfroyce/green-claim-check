@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -8,52 +8,50 @@ import { DarkModeToggle } from "@/components/ui/DarkModeToggle";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { scanText } from "@/lib/scanner-logic";
-import { Shield, CheckCircle, AlertTriangle, TrendingUp, Users, FileText, Zap, ArrowRight, ChevronDown, Euro, XCircle, Clipboard, Search, BarChart3, ShieldCheck, Leaf, Menu, X, Twitter, Linkedin, Github, Mail, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Shield, CheckCircle, AlertTriangle, TrendingUp, Users, FileText, Zap, ArrowRight, ChevronDown, Euro, XCircle, Clipboard, Search, BarChart3, ShieldCheck, Leaf, Menu, X, Linkedin, Mail, Loader2, Upload, Link as LinkIcon, File } from "lucide-react";
 import Link from "next/link";
+import FineCalculatorSection from "@/components/landing/FineCalculator";
 
 export default function LandingPage() {
   const { t } = useLanguage();
   const router = useRouter();
-  const [demoText, setDemoText] = useState("");
+  const [demoText, setDemoText] = useState(""); // Text from text tab
+  const [documentText, setDocumentText] = useState(""); // Text from document
+  const [urlText, setUrlText] = useState(""); // Text from URL
   const [demoResult, setDemoResult] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [showFAQ, setShowFAQ] = useState<number | null>(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [inputType, setInputType] = useState<"text" | "document" | "url">("text");
+  const [urlInput, setUrlInput] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDemoScan = () => {
-    if (!demoText.trim()) return;
+    // Get text from the active tab
+    let textToScan = "";
+    if (inputType === 'text') {
+      textToScan = demoText;
+    } else if (inputType === 'document') {
+      textToScan = documentText;
+    } else if (inputType === 'url') {
+      textToScan = urlText;
+    }
+
+    if (!textToScan.trim()) return;
     
     setIsScanning(true);
     setTimeout(() => {
-      const result = scanText(demoText);
+      const result = scanText(textToScan);
       setDemoResult(result);
       setIsScanning(false);
     }, 800);
   };
 
-  const scrollToDemo = () => {
-    // Demo is now in hero section, just scroll to top
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    setIsMobileMenuOpen(false);
-  };
 
-  const scrollToSection = (sectionId: string) => {
-    const section = document.getElementById(sectionId);
-    if (section) {
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-    setIsMobileMenuOpen(false);
-  };
-
-  // Handle scroll for sticky header
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   const exampleTexts = [
     "Our product is 100% climate neutral and completely sustainable.",
@@ -61,140 +59,214 @@ export default function LandingPage() {
     "Made with 80% recycled materials (certified GRS Standard).",
   ];
 
+  // File validation
+  const validateFile = (file: File): { valid: boolean; error?: string } => {
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = ['.txt', '.docx', '.pdf'];
+    
+    if (file.size > maxSize) {
+      return { valid: false, error: 'Dateigröße überschreitet 5MB Limit' };
+    }
+
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!allowedTypes.includes(fileExtension)) {
+      return { valid: false, error: 'Nicht unterstütztes Dateiformat. Bitte laden Sie .txt, .docx oder .pdf hoch' };
+    }
+
+    return { valid: true };
+  };
+
+  // Parse text from file
+  const parseFileContent = async (file: File): Promise<string> => {
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+
+    if (fileExtension === '.txt') {
+      return await file.text();
+    }
+
+    if (fileExtension === '.docx') {
+      const mammoth = await import('mammoth');
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value;
+    }
+
+    if (fileExtension === '.pdf') {
+      try {
+        const pdfjsLib = await import('pdfjs-dist');
+        
+        if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+        }
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ 
+          data: arrayBuffer,
+          verbosity: 0,
+        });
+        
+        const pdf = await loadingTask.promise;
+        const numPages = pdf.numPages;
+        const textPages: string[] = [];
+        
+        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          const pageText = textContent.items
+            .map((item: any) => item.str || item.text || '')
+            .filter((text: string) => text.trim().length > 0)
+            .join(' ');
+          
+          textPages.push(pageText);
+        }
+        
+        await loadingTask.destroy();
+        const fullText = textPages.join('\n\n').trim();
+        
+        if (!fullText) {
+          throw new Error('PDF enthält keinen extrahierbaren Text.');
+        }
+        
+        return fullText;
+      } catch (error: any) {
+        console.error('PDF parsing error:', error);
+        throw new Error('Fehler beim Parsen der PDF. Bitte versuchen Sie es erneut.');
+      }
+    }
+
+    throw new Error('Nicht unterstützter Dateityp');
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (file: File) => {
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      toast.error(validation.error || 'Ungültige Datei');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadedFile(file);
+
+    try {
+      const text = await parseFileContent(file);
+      const truncatedText = text.slice(0, 500); // Demo limit
+      setDocumentText(truncatedText); // Store in documentText, not demoText
+      // Don't switch tabs - stay in document tab
+      toast.success(`Datei "${file.name}" erfolgreich geladen`);
+    } catch (error: any) {
+      console.error('Error parsing file:', error);
+      toast.error(error.message || 'Fehler beim Parsen der Datei. Bitte versuchen Sie es erneut.');
+      setUploadedFile(null);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Handle drag and drop
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
+
+  // Handle file input change
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
+
+  // Remove uploaded file
+  const handleRemoveFile = () => {
+    setUploadedFile(null);
+    setDocumentText('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Fetch text from URL
+  const fetchUrlContent = async (url: string): Promise<string> => {
+    try {
+      const response = await fetch('/api/fetch-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Fehler beim Abrufen der URL' }));
+        throw new Error(errorData.error || `Fehler beim Abrufen der URL: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.text || '';
+    } catch (error: any) {
+      console.error('Error fetching URL:', error);
+      throw error;
+    }
+  };
+
+  // Handle URL input
+  const handleUrlSubmit = async () => {
+    if (!urlInput.trim()) {
+      toast.error('Bitte geben Sie eine URL ein');
+      return;
+    }
+
+    setIsFetchingUrl(true);
+    try {
+      const text = await fetchUrlContent(urlInput.trim());
+      if (!text.trim()) {
+        toast.warning('Kein Textinhalt auf der Seite gefunden');
+        return;
+      }
+      const truncatedText = text.slice(0, 500); // Demo limit
+      setUrlText(truncatedText); // Store in urlText, not demoText
+      // Don't switch tabs - stay in URL tab
+      toast.success('URL-Inhalt erfolgreich geladen');
+    } catch (error: any) {
+      console.error('Error fetching URL content:', error);
+      toast.error(error.message || 'Fehler beim Abrufen des URL-Inhalts. Bitte überprüfen Sie die URL und versuchen Sie es erneut.');
+    } finally {
+      setIsFetchingUrl(false);
+    }
+  };
+
 
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-gray-900">
-      {/* Header */}
-      <header
-        className={`sticky top-0 z-50 transition-all duration-300 ${
-          isScrolled
-            ? "bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg shadow-sm"
-            : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md"
-        } border-b border-gray-200 dark:border-gray-800`}
-      >
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <Leaf className="w-7 h-7 text-primary" />
-              <span className="text-xl font-semibold text-gray-900 dark:text-white">
-                Green Claim Check
-              </span>
-            </Link>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              <button
-                onClick={() => scrollToSection("features-section")}
-                className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
-              >
-                {t.nav.features}
-              </button>
-              <Link
-                href="/pricing"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
-              >
-                {t.nav.pricing}
-              </Link>
-              <a
-                href="#"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
-              >
-                {t.nav.docs}
-              </a>
-              <a
-                href="#"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
-              >
-                {t.nav.blog}
-              </a>
-            </nav>
-
-            {/* Desktop CTA */}
-            <div className="hidden md:flex items-center gap-4">
-              <button className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">
-                {t.nav.signIn}
-              </button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={scrollToDemo}
-                className="bg-primary hover:bg-primary-dark"
-              >
-                {t.nav.tryFree}
-              </Button>
-              <LanguageToggle />
-              <DarkModeToggle />
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex items-center gap-3">
-              <DarkModeToggle />
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2 text-gray-700 dark:text-gray-300 hover:text-primary transition-colors"
-                aria-label="Toggle menu"
-              >
-                {isMobileMenuOpen ? (
-                  <X className="w-6 h-6" />
-                ) : (
-                  <Menu className="w-6 h-6" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile Menu */}
-          {isMobileMenuOpen && (
-            <div className="md:hidden mt-4 pb-4 border-t border-gray-200 dark:border-gray-800 pt-4 animate-slide-up">
-              <nav className="flex flex-col gap-4">
-                <button
-                  onClick={() => scrollToSection("features-section")}
-                  className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
-                >
-                  {t.nav.features}
-                </button>
-                <Link
-                  href="/pricing"
-                  className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2 block"
-                >
-                  {t.nav.pricing}
-                </Link>
-                <a
-                  href="#"
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
-                >
-                  {t.nav.docs}
-                </a>
-                <a
-                  href="#"
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2"
-                >
-                  {t.nav.blog}
-                </a>
-                <div className="flex flex-col gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
-                  <button className="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary transition-colors py-2">
-                    {t.nav.signIn}
-                  </button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={scrollToDemo}
-                    className="w-full bg-primary hover:bg-primary-dark"
-                  >
-                    {t.nav.tryFree}
-                  </Button>
-                  <div className="pt-2">
-                    <LanguageToggle />
-                  </div>
-                </div>
-              </nav>
-            </div>
-          )}
-        </div>
-      </header>
-
       {/* Hero Section */}
       <section className="gradient-hero text-white py-16 md:py-24 relative overflow-hidden">
         {/* Subtle grid pattern overlay is handled in CSS via ::before */}
@@ -212,103 +284,388 @@ export default function LandingPage() {
           <div className="text-center mb-8 md:mb-10 max-w-4xl mx-auto">
             <div className="fade-in-up">
               <h1 className="mb-6 md:mb-8 text-4xl md:text-5xl lg:text-6xl font-bold text-balance text-white drop-shadow-lg leading-tight">
-                Vermeiden Sie Bußgelder bis zu €40.000<br />
-                für Greenwashing-Verstöße
+                Vermeiden Sie Bußgelder bis zu <span className="text-emerald-400">4%</span><br />
+                Ihres jährlichen EU-Umsatzes
+                <span className="block text-2xl md:text-3xl text-emerald-300 mt-2 font-normal">
+                  für Greenwashing-Verstöße
+                </span>
               </h1>
             </div>
             
             <div className="fade-in-up-delay-1">
-              <p className="text-lg md:text-xl text-white/95 max-w-3xl mx-auto text-balance mb-8 leading-relaxed">
-                Prüfen Sie Ihre Marketing-Aussagen automatisch auf EU-Compliance – in Sekunden, nicht Stunden.
+              <p className="text-lg md:text-xl text-emerald-100 max-w-3xl mx-auto text-balance mb-8 leading-relaxed">
+                Prüfen Sie Ihre Marketing-Aussagen automatisch auf EU-Compliance –{" "}
+                <span className="font-semibold text-white">in Sekunden, nicht Stunden.</span>
               </p>
             </div>
           </div>
 
           {/* Primary CTA mit Trust Signals */}
           <div className="flex flex-col items-center gap-4 mb-8 fade-in-up-delay-2">
-            <Link href="/app" className="w-full max-w-md">
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-full py-5 px-8 text-lg md:text-xl font-bold shadow-2xl hover:shadow-primary/40 hover:scale-[1.02] transition-all duration-300"
-              >
-                {t.hero.cta || "Jetzt kostenlos prüfen"}
-                <ArrowRight className="w-6 h-6 ml-3 inline" />
-              </Button>
-            </Link>
-            <div className="flex items-center gap-4 text-sm text-white/80 flex-wrap justify-center">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" />
-                <span>Keine Anmeldung nötig</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" />
-                <span>Ergebnis in 30 Sekunden</span>
-              </div>
-            </div>
-            <Link href="#features-section" className="text-sm text-white/80 hover:text-white transition-colors underline underline-offset-4">
-              Wie es funktioniert →
-            </Link>
-          </div>
-
-          {/* Social Proof */}
-          <div className="text-center mb-10 md:mb-12 fade-in-up-delay-3">
-            <p className="text-sm md:text-base text-white/80 mb-2">
-              {t.hero.socialProof || "💬 Vertraut von 500+ Marketing-Teams in der EU"}
+            {/* Primary CTA - zum Live-Demo */}
+            <button
+              onClick={() => {
+                document.getElementById('demo-section')?.scrollIntoView({ 
+                  behavior: 'smooth',
+                  block: 'start'
+                })
+              }}
+              className="group relative w-full max-w-md py-5 px-8 bg-emerald-500 hover:bg-emerald-400 text-white font-semibold text-lg rounded-xl shadow-xl shadow-emerald-900/50 hover:shadow-2xl hover:shadow-emerald-800/50 transition-all duration-300 hover:scale-105"
+            >
+              {t.hero.cta || "Jetzt kostenlos prüfen"} →
+            </button>
+            <p className="block text-xs text-emerald-100 mt-2 font-normal text-center">
+              ✓ Keine Anmeldung  ✓ Ergebnis in 30 Sekunden
             </p>
-            <div className="flex items-center justify-center gap-2">
-              <div className="flex -space-x-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div
-                    key={i}
-                    className="w-8 h-8 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xs font-bold text-white"
-                  >
-                    {String.fromCharCode(65 + i)}
-                  </div>
-                ))}
-              </div>
-              <span className="text-sm text-white/90 ml-2">⭐⭐⭐⭐⭐ 4.8/5</span>
-            </div>
+
+            {/* Secondary Link zum Rechner */}
+            <button
+              onClick={() => {
+                document.getElementById('bussgeld-rechner')?.scrollIntoView({ 
+                  behavior: 'smooth',
+                  block: 'start'
+                })
+              }}
+              className="group mt-6 inline-flex items-center gap-2 text-emerald-200 hover:text-white text-base font-medium transition-all duration-300"
+            >
+              <span className="border-b-2 border-emerald-400/50 group-hover:border-emerald-400 pb-1 transition-colors">
+                Berechnen Sie Ihr persönliches Bußgeld-Risiko
+              </span>
+              <svg 
+                className="w-5 h-5 group-hover:translate-y-1 transition-transform" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            </button>
           </div>
 
-          {/* Prominent Interactive Demo */}
+          {/* Trust Signals */}
+          <div className="mt-12 mb-10 md:mb-12 fade-in-up-delay-3">
+            {/* Trust Badges Grid */}
+            <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 mb-6">
+              {/* EU-Konform Badge */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg border border-emerald-700/30 backdrop-blur-sm">
+                <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                </svg>
+                <span className="text-emerald-200 text-sm font-medium">EU-Richtlinie 2024/825</span>
+              </div>
+
+              {/* DSGVO Badge */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg border border-emerald-700/30 backdrop-blur-sm">
+                <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
+                </svg>
+                <span className="text-emerald-200 text-sm font-medium">DSGVO-konform</span>
+              </div>
+
+              {/* SSL Badge */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg border border-emerald-700/30 backdrop-blur-sm">
+                <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                </svg>
+                <span className="text-emerald-200 text-sm font-medium">SSL-verschlüsselt</span>
+              </div>
+
+              {/* Made in EU Badge */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg border border-emerald-700/30 backdrop-blur-sm">
+                <span className="text-emerald-400 text-lg">🇪🇺</span>
+                <span className="text-emerald-200 text-sm font-medium">Made in EU</span>
+              </div>
+            </div>
+
+            {/* Launch Status */}
+            <div className="flex justify-center">
+              <span className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500/20 border border-emerald-500 rounded-full text-emerald-300 text-sm font-semibold">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Jetzt verfügbar – Keine Warteliste
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Live Demo Section */}
+      <section id="demo-section" className="relative py-16 md:py-20 overflow-hidden scroll-mt-20">
+        {/* Gradient Background - same as Greenwashing-Krise */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-900"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-5xl mx-auto fade-in-up-delay-4">
             <Card variant="elevated" className="bg-white dark:bg-gray-800 shadow-2xl border-2 border-primary/20">
               <div className="p-6 md:p-8">
-                <h2 className="text-xl md:text-2xl font-bold mb-4 text-gray-900 dark:text-white text-center">
+                <h2 className="text-xl md:text-2xl font-bold mb-2 text-gray-900 dark:text-white text-center">
                   Live-Demo: Testen Sie jetzt
                 </h2>
-                <div className="mb-4">
-                  <textarea
-                    value={demoText}
-                    onChange={(e) => {
-                      const text = e.target.value.slice(0, 250);
-                      setDemoText(text);
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">
+                  Geben Sie Text ein, laden Sie ein Dokument hoch (.txt, .docx, .pdf) oder scannen Sie eine URL
+                </p>
+
+                {/* Input Type Tabs */}
+                <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 mb-4">
+                  <button
+                    onClick={() => {
+                      setInputType('text');
                     }}
-                    placeholder={t.demo.placeholder || "Unser Produkt ist 100% klimaneutral und aus recycelten Materialien hergestellt..."}
-                    className="w-full h-40 md:h-48 p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white resize-none text-gray-900 text-base shadow-inner transition-all duration-200"
-                  />
-                  {/* Zeichenlimit NICHT anzeigen - nur intern limitiert */}
+                    className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+                      inputType === 'text'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Text</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setInputType('document');
+                      setUrlInput('');
+                    }}
+                    className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+                      inputType === 'document'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Upload className="w-4 h-4" />
+                      <span>Dokument</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setInputType('url')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+                      inputType === 'url'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="w-4 h-4" />
+                      <span>URL</span>
+                    </div>
+                  </button>
                 </div>
-                
-                <div className="flex flex-wrap gap-2 mb-4 justify-center">
-                  <span className="text-xs text-gray-500 mr-2">💡 Beispiele probieren:</span>
-                  {exampleTexts.map((text, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setDemoText(text.slice(0, 250))}
-                      className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600"
+
+                {/* Textarea - Only shown in respective tabs */}
+                {inputType === 'text' && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                      Geben Sie Ihren Marketing-Text ein (max. 500 Zeichen)
+                    </label>
+                    <textarea
+                      value={demoText}
+                      onChange={(e) => {
+                        const text = e.target.value.slice(0, 500);
+                        setDemoText(text);
+                      }}
+                      placeholder={t.demo.placeholder || "Unser Produkt ist 100% klimaneutral und aus recycelten Materialien hergestellt..."}
+                      className="w-full h-40 md:h-48 p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white resize-none text-gray-900 text-base shadow-inner transition-all duration-200"
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="text-sm text-gray-500">
+                        {demoText.length === 0 && <span className="text-primary">Tippen Sie hier, um zu beginnen</span>}
+                      </div>
+                      <div className="text-sm text-gray-500 font-medium">
+                        {demoText.length}/500
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {inputType === 'document' && uploadedFile && documentText && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                      Dokument-Inhalt (max. 500 Zeichen)
+                    </label>
+                    <textarea
+                      value={documentText}
+                      readOnly
+                      className="w-full h-40 md:h-48 p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white resize-none text-gray-900 text-base shadow-inner transition-all duration-200"
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="text-sm text-gray-500">
+                        <span>Dokument-Inhalt</span>
+                      </div>
+                      <div className="text-sm text-gray-500 font-medium">
+                        {documentText.length}/500
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {inputType === 'url' && urlText && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                      URL-Inhalt (max. 500 Zeichen)
+                    </label>
+                    <textarea
+                      value={urlText}
+                      readOnly
+                      className="w-full h-40 md:h-48 p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white resize-none text-gray-900 text-base shadow-inner transition-all duration-200"
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="text-sm text-gray-500">
+                        <span>URL-Inhalt{urlInput ? ` von ${urlInput}` : ''}</span>
+                      </div>
+                      <div className="text-sm text-gray-500 font-medium">
+                        {urlText.length}/500
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Document Tab - File Upload with Drag & Drop */}
+                {inputType === 'document' && (
+                  <>
+                    {/* File Upload Area with Drag & Drop */}
+                    <div 
+                      className={`relative border-2 border-dashed rounded-lg transition-colors mb-4 ${
+                        isDragging
+                          ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                          : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      onDragEnter={handleDragEnter}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
                     >
-                      {text.slice(0, 30)}...
-                    </button>
-                  ))}
-                </div>
+                      {isDragging && (
+                        <div className="absolute inset-0 z-20 bg-primary/10 dark:bg-primary/20 rounded-lg flex items-center justify-center pointer-events-none">
+                          <div className="text-center">
+                            <Upload className="w-12 h-12 text-primary mx-auto mb-2" />
+                            <p className="text-sm font-medium text-primary">Datei hier ablegen</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* File Upload Button */}
+                      <div className="flex justify-center p-6">
+                        <label className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg cursor-pointer transition-colors text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {isUploading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Verarbeitung...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4" />
+                              <span>Dokument hochladen</span>
+                            </>
+                          )}
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".txt,.docx,.pdf"
+                            onChange={handleFileInputChange}
+                            className="hidden"
+                            disabled={isUploading}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* File Info */}
+                    {uploadedFile && (
+                      <div className="flex items-center justify-between p-3 bg-primary/5 dark:bg-primary/10 rounded-lg border border-primary/20 mb-4">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <File className="w-4 h-4 text-primary flex-shrink-0" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                            {uploadedFile.name}
+                          </span>
+                          {isUploading && (
+                            <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+                          )}
+                        </div>
+                        <button
+                          onClick={handleRemoveFile}
+                          className="p-1 hover:bg-primary/10 rounded text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                          title="Datei entfernen"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* URL Tab - URL Input */}
+                {inputType === 'url' && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      URL zum Scannen eingeben
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        placeholder="https://example.com/page"
+                        className="flex-1 px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-gray-900 text-base"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            handleUrlSubmit();
+                          }
+                        }}
+                      />
+                      <Button
+                        onClick={handleUrlSubmit}
+                        disabled={!urlInput.trim() || isFetchingUrl}
+                        variant="primary"
+                        className="px-6"
+                        isLoading={isFetchingUrl}
+                      >
+                        {isFetchingUrl ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Lade...
+                          </>
+                        ) : (
+                          <>
+                            <LinkIcon className="w-4 h-4 mr-2" />
+                            Laden
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Example Texts - Only shown in Text tab */}
+                {inputType === 'text' && (
+                  <div className="flex flex-wrap gap-2 mb-4 justify-center">
+                    <span className="text-xs text-gray-500 self-center mr-2">💡 Beispiele:</span>
+                    {exampleTexts.map((text, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setDemoText(text.slice(0, 500))}
+                        className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600"
+                      >
+                        {text.slice(0, 30)}...
+                      </button>
+                    ))}
+                  </div>
+                )}
                 
+                {/* Compliance prüfen Button - works from all tabs if text is available */}
                 <Button
                   onClick={handleDemoScan}
                   isLoading={isScanning}
                   className="w-full py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
-                  disabled={!demoText.trim()}
+                  disabled={
+                    (inputType === 'text' && !demoText.trim()) ||
+                    (inputType === 'document' && !documentText.trim()) ||
+                    (inputType === 'url' && !urlText.trim())
+                  }
                   variant="primary"
                 >
                   {isScanning ? (
@@ -411,7 +768,33 @@ export default function LandingPage() {
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                           Erhalten Sie vollständige Ergebnisse mit Handlungsempfehlungen, PDF-Bericht und konkreten Lösungsvorschlägen.
                         </p>
-                        <Link href="/app">
+                        <Link 
+                          href="/auth/signup"
+                          onClick={() => {
+                            // Save the appropriate text to sessionStorage for auto-scan after registration
+                            let textToSave = "";
+                            if (inputType === 'text' && demoText.trim()) {
+                              textToSave = demoText.trim();
+                              sessionStorage.setItem('demoSourceType', 'text');
+                            } else if (inputType === 'document' && documentText.trim()) {
+                              textToSave = documentText.trim();
+                              sessionStorage.setItem('demoSourceType', 'file');
+                              if (uploadedFile) {
+                                sessionStorage.setItem('demoFileName', uploadedFile.name);
+                              }
+                            } else if (inputType === 'url' && urlText.trim()) {
+                              textToSave = urlText.trim();
+                              sessionStorage.setItem('demoSourceType', 'url');
+                              if (urlInput.trim()) {
+                                sessionStorage.setItem('demoUrl', urlInput.trim());
+                              }
+                            }
+                            
+                            if (textToSave) {
+                              sessionStorage.setItem('demoTextForScan', textToSave);
+                            }
+                          }}
+                        >
                           <Button variant="primary" className="w-full py-4 text-lg font-semibold shadow-lg mb-3">
                             Kostenlos registrieren für vollständigen Bericht →
                           </Button>
@@ -430,21 +813,36 @@ export default function LandingPage() {
       </section>
 
       {/* Problem Section */}
-      <section className="py-20 md:py-24 bg-white dark:bg-gray-800">
-        <div className="container mx-auto px-4">
-          <h2 className="text-center mb-16 md:mb-20">
-            {t.problem.title}
+      <section className="relative py-16 md:py-20 overflow-hidden">
+        {/* Gradient Background - same as Demo Section */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-900"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          {/* Badge ähnlich Hero */}
+          <div className="text-center mb-6 fade-in-up">
+            <div className="inline-flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-emerald-200/50 dark:border-emerald-800/50 rounded-full px-4 py-2 text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm">
+              <AlertTriangle className="w-4 h-4 text-danger" />
+              <span>{t.problem.title}</span>
+            </div>
+          </div>
+
+          <h2 className="text-center mb-12 md:mb-16 text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white">
+            Die Greenwashing-Krise
           </h2>
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto">
             {/* Statistic 1 */}
-            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-gray-300 dark:hover:border-gray-600">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-red-50/30 to-transparent dark:from-red-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-              <div className="relative">
-                <AlertTriangle className="w-10 h-10 text-danger mx-auto mb-6 opacity-70" />
-                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4">{t.problem.stat1.value}</div>
+            <div className="group relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl p-8 shadow-lg border border-emerald-100/50 dark:border-emerald-900/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 hover:border-emerald-200 dark:hover:border-emerald-700">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-red-50/40 to-transparent dark:from-red-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+              <div className="relative text-center">
+                <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                  <AlertTriangle className="w-8 h-8 text-danger" />
+                </div>
+                <div className="text-6xl font-bold bg-gradient-to-br from-danger to-red-600 bg-clip-text text-transparent mb-4">{t.problem.stat1.value}</div>
                 <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
                   {t.problem.stat1.description}
-                  <span className="block mt-2 text-sm text-gray-500 dark:text-gray-400 font-medium">
+                  <span className="block mt-3 text-sm text-gray-500 dark:text-gray-400 font-medium">
                     {t.problem.stat1.source}
                   </span>
                 </p>
@@ -452,11 +850,13 @@ export default function LandingPage() {
             </div>
 
             {/* Statistic 2 */}
-            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-gray-300 dark:hover:border-gray-600">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-50/30 to-transparent dark:from-amber-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-              <div className="relative">
-                <Euro className="w-10 h-10 text-accent mx-auto mb-6 opacity-70" />
-                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4">{t.problem.stat2.value}</div>
+            <div className="group relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl p-8 shadow-lg border border-emerald-100/50 dark:border-emerald-900/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 hover:border-emerald-200 dark:hover:border-emerald-700">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-50/40 to-transparent dark:from-amber-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+              <div className="relative text-center">
+                <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                  <Euro className="w-8 h-8 text-accent" />
+                </div>
+                <div className="text-6xl font-bold bg-gradient-to-br from-accent to-amber-600 bg-clip-text text-transparent mb-4">{t.problem.stat2.value}</div>
                 <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
                   {t.problem.stat2.description}
                 </p>
@@ -464,11 +864,13 @@ export default function LandingPage() {
             </div>
 
             {/* Statistic 3 */}
-            <div className="group relative bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-gray-300 dark:hover:border-gray-600">
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent dark:from-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-              <div className="relative">
-                <XCircle className="w-10 h-10 text-primary mx-auto mb-6 opacity-70" />
-                <div className="text-5xl font-bold text-gray-900 dark:text-white mb-4">{t.problem.stat3.value}</div>
+            <div className="group relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl p-8 shadow-lg border border-emerald-100/50 dark:border-emerald-900/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 hover:border-emerald-200 dark:hover:border-emerald-700">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 to-transparent dark:from-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+              <div className="relative text-center">
+                <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                  <XCircle className="w-8 h-8 text-primary" />
+                </div>
+                <div className="text-6xl font-bold bg-gradient-to-br from-primary to-emerald-600 bg-clip-text text-transparent mb-4">{t.problem.stat3.value}</div>
                 <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
                   {t.problem.stat3.description}
                 </p>
@@ -478,10 +880,17 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Bußgeld-Rechner Section */}
+      <FineCalculatorSection />
+
       {/* How It Works / Features */}
-      <section id="features-section" className="py-20 md:py-24 bg-gray-50 dark:bg-gray-900 scroll-mt-20">
-        <div className="container mx-auto px-4">
-          <h2 className="text-center mb-16 md:mb-20">
+      <section id="features-section" className="relative py-20 md:py-24 overflow-hidden scroll-mt-20">
+        {/* Gradient Background - same as Demo Section */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-900"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <h2 className="text-center mb-16 md:mb-20 text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
             {t.howItWorks.title}
           </h2>
           
@@ -527,7 +936,7 @@ export default function LandingPage() {
                     style={{ animationDelay: `${idx * 0.15}s` }}
                   >
                     {/* Step Card */}
-                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+                    <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-xl p-6 border border-emerald-100/50 dark:border-emerald-900/30 shadow-sm hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-700 transition-all duration-300 hover:-translate-y-1">
                       {/* Step Number Circle */}
                       <div className="relative mb-6">
                         <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center border-2 border-primary">
@@ -594,7 +1003,7 @@ export default function LandingPage() {
                   )}
                   
                   {/* Step Card */}
-                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-xl p-6 border border-emerald-100/50 dark:border-emerald-900/30 shadow-sm">
                     <div className="flex items-start gap-4">
                       {/* Step Number Circle */}
                       <div className="relative flex-shrink-0">
@@ -627,227 +1036,43 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ */}
-      <section className="py-16 bg-white dark:bg-gray-800">
-        <div className="container mx-auto px-4 max-w-3xl">
-          <h2 className="text-center mb-12 md:mb-16">
+      <section className="relative py-12 md:py-16 overflow-hidden">
+        {/* Gradient Background - same as Demo Section */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-900"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <h2 className="text-center mb-10 md:mb-12 text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
             {t.faq.title}
           </h2>
-          <div className="space-y-4">
-            {t.faq.items.map((faq, idx) => (
-              <Card
-                key={idx}
-                variant="outlined"
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setShowFAQ(showFAQ === idx ? null : idx)}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <h3 className="font-semibold flex-1">{faq.question}</h3>
-                  <ChevronDown
-                    className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
-                      showFAQ === idx ? "rotate-180" : ""
-                    }`}
-                  />
-                </div>
-                {showFAQ === idx && (
-                  <p className="mt-4 text-gray-600 dark:text-gray-400 animate-slide-up">
-                    {faq.answer}
-                  </p>
-                )}
-              </Card>
-            ))}
+          <div className="max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              {t.faq.items.map((faq, idx) => (
+                <Card
+                  key={idx}
+                  variant="outlined"
+                  className="cursor-pointer hover:shadow-md hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-200"
+                  onClick={() => setShowFAQ(showFAQ === idx ? null : idx)}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="font-semibold text-base flex-1 text-gray-900 dark:text-white">{faq.question}</h3>
+                    <ChevronDown
+                      className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
+                        showFAQ === idx ? "rotate-180" : ""
+                      }`}
+                    />
+                  </div>
+                  {showFAQ === idx && (
+                    <p className="mt-3 text-sm text-gray-600 dark:text-gray-400 leading-relaxed animate-slide-up">
+                      {faq.answer}
+                    </p>
+                  )}
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-950 text-white">
-        <div className="container mx-auto px-4 py-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 mb-12">
-            {/* Product Column */}
-            <div>
-              <h4 className="font-semibold text-base mb-6 text-white">{t.footer.product}</h4>
-              <ul className="space-y-4">
-                <li>
-                  <button
-                    onClick={() => scrollToSection("features-section")}
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group"
-                  >
-                    Features
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </button>
-                </li>
-                <li>
-                  <Link
-                    href="/pricing"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    Pricing
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </Link>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    API
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    Roadmap
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Company Column */}
-            <div>
-              <h4 className="font-semibold text-base mb-6 text-white">{t.footer.company}</h4>
-              <ul className="space-y-4">
-                <li>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    About
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    Blog
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    Careers
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    Contact
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Legal Column */}
-            <div>
-              <h4 className="font-semibold text-base mb-6 text-white">{t.footer.legal}</h4>
-              <ul className="space-y-4">
-                <li>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    Privacy
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    Terms
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    GDPR
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    Imprint
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Social Column */}
-            <div>
-              <h4 className="font-semibold text-base mb-6 text-white">{t.footer.social}</h4>
-              <ul className="space-y-4">
-                <li>
-                  <a
-                    href="#"
-                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    <Twitter className="w-4 h-4" />
-                    Twitter
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    <Linkedin className="w-4 h-4" />
-                    LinkedIn
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    <Github className="w-4 h-4" />
-                    GitHub
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors relative group inline-block"
-                  >
-                    <Mail className="w-4 h-4" />
-                    Email
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Bottom Copyright */}
-          <div className="border-t border-gray-800 pt-8 text-center">
-            <p className="text-sm text-gray-400">
-              {t.footer.copyright}
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

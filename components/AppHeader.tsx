@@ -7,7 +7,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { DarkModeToggle } from "@/components/ui/DarkModeToggle";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { 
-  Shield, 
+  Leaf, 
   Search, 
   History, 
   FileText, 
@@ -136,22 +136,37 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       );
     }
 
+    // Compact format for header bar
+    const compactText = isUnlimitedPlan
+      ? `${scansUsed} scans`
+      : scansRemaining !== null
+      ? `${scansRemaining} scans left`
+      : `${scansUsed} scans`;
+
     return (
-      <div className="flex items-center gap-3 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg min-w-[180px]">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">
-              {usageText}
-            </span>
-          </div>
-          {!isUnlimitedPlan && scansRemaining !== null && (
-            <>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+      <div className="relative group">
+        {/* Compact display (always visible) */}
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+            {compactText}
+          </span>
+        </div>
+        
+        {/* Expanded tooltip on hover (shows full information) */}
+        {!isUnlimitedPlan && scansRemaining !== null && (
+          <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {usageText}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${usagePercentage}%` }}
                   transition={{ duration: 0.5, ease: "easeOut" }}
-                  className={`h-1.5 rounded-full ${
+                  className={`h-2 rounded-full ${
                     usagePercentage >= 90
                       ? "bg-danger"
                       : usagePercentage >= 70
@@ -161,13 +176,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 />
               </div>
               {encouragingMessage && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                   {encouragingMessage}
                 </p>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -178,7 +193,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Logo + Brand (Left) */}
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <Shield className="w-7 h-7 text-primary" />
+            <Leaf className="w-7 h-7 text-primary" />
             <span className="text-xl font-semibold text-gray-900 dark:text-white">
               Green Claim Check
             </span>
@@ -239,7 +254,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden animate-fade-in">
                   <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{userName}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{creditsRemaining} scans remaining</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {isUnlimited(plan) 
+                        ? `${scansUsed} scans this month`
+                        : creditsRemaining !== null
+                        ? `${creditsRemaining} scans remaining`
+                        : `${scansUsed} scans`
+                      }
+                    </p>
                   </div>
                   <div className="py-1">
                     {userMenuItems.map((item) => {
@@ -330,7 +352,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">{userName}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{creditsRemaining} scans remaining</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {isUnlimited(plan) 
+                      ? `${scansUsed} scans this month`
+                      : creditsRemaining !== null
+                      ? `${creditsRemaining} scans remaining`
+                      : `${scansUsed} scans`
+                    }
+                  </p>
                 </div>
               </div>
               <div className="space-y-1">

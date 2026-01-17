@@ -21,7 +21,8 @@ import {
   Eye,
   EyeOff,
   File,
-  AlertCircle
+  AlertCircle,
+  Link as LinkIcon
 } from "lucide-react";
 
 interface InputPanelProps {
@@ -52,6 +53,9 @@ export const InputPanel: React.FC<InputPanelProps> = ({
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string>("Free");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [inputType, setInputType] = useState<"text" | "url">("text");
+  const [urlInput, setUrlInput] = useState("");
+  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
 
   const exampleTemplates = [
     {
@@ -283,8 +287,69 @@ export const InputPanel: React.FC<InputPanelProps> = ({
     setScanSuccess(false);
     setShowHighlights(false);
     setUploadedFile(null);
+    setUrlInput("");
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  // Fetch text from URL
+  const fetchUrlContent = async (url: string): Promise<string> => {
+    try {
+      // Validate URL
+      const urlObj = new URL(url);
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        throw new Error('URL must start with http:// or https://');
+      }
+
+      // Use a CORS proxy or fetch from API route to avoid CORS issues
+      // For now, we'll use a server-side API route
+      const response = await fetch('/api/fetch-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch URL' }));
+        throw new Error(errorData.error || `Failed to fetch URL: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.text || '';
+    } catch (error: any) {
+      console.error('Error fetching URL:', error);
+      if (error.message.includes('Invalid URL')) {
+        throw new Error('Invalid URL format. Please enter a valid URL starting with http:// or https://');
+      }
+      throw error;
+    }
+  };
+
+  // Handle URL input
+  const handleUrlSubmit = async () => {
+    if (!urlInput.trim()) {
+      toast.error('Please enter a URL');
+      return;
+    }
+
+    setIsFetchingUrl(true);
+    try {
+      const text = await fetchUrlContent(urlInput.trim());
+      if (!text.trim()) {
+        toast.warning('No text content found on the page');
+        return;
+      }
+      onInputChange(text);
+      setInputType('text'); // Switch to text view after fetching
+      toast.success('URL content loaded successfully');
+    } catch (error: any) {
+      console.error('Error fetching URL content:', error);
+      toast.error(error.message || 'Failed to fetch URL content. Please check the URL and try again.');
+    } finally {
+      setIsFetchingUrl(false);
     }
   };
 
@@ -475,10 +540,96 @@ export const InputPanel: React.FC<InputPanelProps> = ({
   return (
     <Card variant="elevated" className="shadow-sm">
       <div className="space-y-4">
+        {/* Input Type Tabs */}
+        <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => {
+              setInputType('text');
+              setUrlInput('');
+            }}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              inputType === 'text'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              <span>Text / Document</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setInputType('url')}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              inputType === 'url'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <LinkIcon className="w-4 h-4" />
+              <span>URL</span>
+            </div>
+          </button>
+        </div>
+
+        {/* URL Input Section */}
+        {inputType === 'url' && (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Enter URL to scan
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="https://example.com/page"
+                  className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-800 dark:text-white"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleUrlSubmit();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleUrlSubmit}
+                  disabled={!urlInput.trim() || isFetchingUrl}
+                  variant="primary"
+                  className="px-6"
+                >
+                  {isFetchingUrl ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Fetching...
+                    </>
+                  ) : (
+                    <>
+                      <LinkIcon className="w-4 h-4 mr-2" />
+                      Fetch
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            {inputText && inputText.length > 0 && (
+              <div className="p-3 bg-primary/5 dark:bg-primary/10 rounded-lg border border-primary/20">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <strong>Source:</strong> URL ({urlInput || 'Fetched URL'})
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  Content loaded from URL. Switch to "Text / Document" tab to view and edit.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Header with Character Counter */}
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {t.app.inputText}
+            {inputType === 'url' ? 'URL Content' : t.app.inputText}
           </h2>
           <div className="text-sm text-gray-500 dark:text-gray-400">
             {inputText.length} {t.app.characters}
@@ -508,6 +659,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({
         )}
 
         {/* Textarea with Highlight Overlay and Drag-Drop */}
+        {inputType === 'text' && (
         <div
           className={`relative border-2 border-dashed rounded-lg transition-colors ${
             isDragging
@@ -558,6 +710,38 @@ export const InputPanel: React.FC<InputPanelProps> = ({
             </div>
           )}
         </div>
+        )}
+
+        {/* Textarea View for URL content */}
+        {inputType === 'url' && inputText && (
+          <div className="relative border-2 border-dashed rounded-lg border-transparent">
+            <textarea
+              value={inputText}
+              onChange={(e) => onInputChange(e.target.value)}
+              placeholder="URL content will appear here after fetching..."
+              className={`w-full min-h-[400px] p-4 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-800 resize-y font-mono text-sm transition-all ${
+                showHighlights && scanResults 
+                  ? 'text-transparent caret-gray-900 dark:caret-white' 
+                  : 'dark:text-white'
+              }`}
+              readOnly={false}
+            />
+            
+            {/* Highlight Overlay for URL content */}
+            {showHighlights && scanResults && inputText && (
+              <div
+                className="absolute inset-0 z-10 p-4 font-mono text-sm whitespace-pre-wrap break-words overflow-hidden rounded-lg"
+                style={{
+                  lineHeight: '1.5',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  pointerEvents: 'none',
+                }}
+              >
+                {renderHighlightedText(inputText, scanResults)}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Action Buttons Row */}
         <div className="flex flex-wrap items-center gap-3">

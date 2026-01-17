@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const demoText = requestUrl.searchParams.get("demoText");
   const next = requestUrl.searchParams.get("next") || "/app";
 
   if (code) {
@@ -25,7 +26,12 @@ export async function GET(request: NextRequest) {
       
       if (callbackSession) {
         // Success - redirect to app with session in cookies
-        const response = NextResponse.redirect(new URL(next, requestUrl.origin));
+        // If demoText is present, pass it as query parameter for auto-scan
+        const redirectUrl = demoText 
+          ? new URL(`${next}?autoScan=true&demoText=${encodeURIComponent(demoText)}`, requestUrl.origin)
+          : new URL(next, requestUrl.origin);
+        
+        const response = NextResponse.redirect(redirectUrl);
         
         // Ensure cookies are set properly
         // The session should already be in cookies from exchangeCodeForSession

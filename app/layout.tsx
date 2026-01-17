@@ -3,6 +3,8 @@ import "./globals.css";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
+import { ConditionalHeader } from "@/components/layout/ConditionalHeader";
+import { Footer } from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "Green Claim Check - EU Compliance Tool",
@@ -19,7 +21,9 @@ export default function RootLayout({
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <LanguageProvider>
+            <ConditionalHeader />
             {children}
+            <Footer />
             <Toaster 
               position="bottom-right"
               richColors
