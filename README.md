@@ -6,7 +6,7 @@ A production-ready SaaS web application that scans marketing text for potentiall
 
 Green Claim Check helps businesses ensure their marketing materials comply with EU Green Claims Directive regulations. The application scans text for 260+ banned terms and phrases, categorizes findings by severity, and provides actionable compliance reports.
 
-## ✨ Features
+##  Features
 
 ### Core Functionality
 - **Text Scanning**: Real-time scanning of marketing text for banned terms
