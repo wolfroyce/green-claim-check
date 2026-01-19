@@ -75,7 +75,7 @@ export default function PricingPage() {
     {
       id: 'free' as const,
       name: t.pricing.free.name,
-      subtitle: t.pricing.free.subtitle || "Für Einzelnutzer",
+      subtitle: (t.pricing.free as any).subtitle || "Für Einzelnutzer",
       monthlyPrice: 0,
       yearlyPrice: 0,
       features: t.pricing.free.features,
@@ -100,7 +100,7 @@ export default function PricingPage() {
     {
       id: 'pro' as const,
       name: t.pricing.pro.name,
-      subtitle: t.pricing.pro.subtitle || "Für wachsende Teams",
+      subtitle: (t.pricing.pro as any).subtitle || "Für wachsende Teams",
       monthlyPrice: 49,
       yearlyPrice: 39,
       features: t.pricing.pro.features,
@@ -274,7 +274,7 @@ export default function PricingPage() {
                           {plan.cta}
                           {plan.trialDays && (
                             <span className="ml-2 text-xs opacity-80">
-                              ({plan.trialDays} {t.pricing.trial || "days"})
+                              ({plan.trialDays} {(t.pricing as any).trial || "days"})
                             </span>
                           )}
                         </>
