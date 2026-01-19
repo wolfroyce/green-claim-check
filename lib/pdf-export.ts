@@ -4,12 +4,12 @@ import { ScanResults } from "./scanner-logic";
 
 // Color definitions matching the app theme
 const COLORS = {
-  primary: [74, 107, 90], // #4A6B5A
-  danger: [200, 90, 79], // #C85A4F
-  accent: [184, 134, 91], // #B8865B
-  success: [90, 124, 107], // #5A7C6B
-  gray: [107, 114, 128], // #6B7280
-  lightGray: [243, 244, 246], // #F3F4F6
+  primary: [74, 107, 90] as [number, number, number], // #4A6B5A
+  danger: [200, 90, 79] as [number, number, number], // #C85A4F
+  accent: [184, 134, 91] as [number, number, number], // #B8865B
+  success: [90, 124, 107] as [number, number, number], // #5A7C6B
+  gray: [107, 114, 128] as [number, number, number], // #6B7280
+  lightGray: [243, 244, 246] as [number, number, number], // #F3F4F6
 };
 
 /**
@@ -72,7 +72,7 @@ export function exportToPDF(results: ScanResults, companyName?: string): void {
   checkPageBreak(40);
   
   // Risk Score Circle Background
-  const scoreColor = 
+  const scoreColor: [number, number, number] = 
     results.riskScore >= 81 ? COLORS.danger :
     results.riskScore >= 61 ? [255, 165, 0] : // Orange
     results.riskScore >= 31 ? COLORS.accent :
@@ -290,7 +290,7 @@ export function exportToPDF(results: ScanResults, companyName?: string): void {
       checkPageBreak(60);
 
       // Severity badge
-      const severityColor = 
+      const severityColor: [number, number, number] = 
         finding.severity === "critical" ? COLORS.danger :
         finding.severity === "warning" ? COLORS.accent :
         COLORS.success;
