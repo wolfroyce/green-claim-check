@@ -3,6 +3,7 @@ import "./globals.css";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
+import { Analytics } from '@vercel/analytics/react';
 import { ConditionalHeader } from "@/components/layout/ConditionalHeader";
 import { Footer } from "@/components/layout/Footer";
 
@@ -30,6 +31,7 @@ export default function RootLayout({
               closeButton
               duration={3000}
             />
+            <Analytics />
           </LanguageProvider>
         </ThemeProvider>
       </body>

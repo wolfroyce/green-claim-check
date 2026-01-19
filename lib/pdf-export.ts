@@ -29,11 +29,17 @@ export function exportToPDF(results: ScanResults, companyName?: string): void {
   const margin = 20;
   let yPos = margin;
 
-  // Helper function to add new page if needed
+  /**
+   * Helper function to check if content will fit on current page
+   * Automatically adds a new page if content would overflow
+   * @param requiredHeight - Minimum height needed for the next content block
+   * @returns true if a new page was added, false otherwise
+   */
   const checkPageBreak = (requiredHeight: number) => {
+    // Check if adding content would exceed page boundaries (accounting for bottom margin)
     if (yPos + requiredHeight > pageHeight - margin) {
-      doc.addPage();
-      yPos = margin;
+      doc.addPage(); // Create new page
+      yPos = margin; // Reset vertical position to top margin
       return true;
     }
     return false;
@@ -71,10 +77,16 @@ export function exportToPDF(results: ScanResults, companyName?: string): void {
   // ========== RISK SCORE ==========
   checkPageBreak(40);
   
-  // Risk Score Circle Background
+  /**
+   * Determine risk score color based on score thresholds:
+   * - 81-100: Critical (red/danger)
+   * - 61-80: High (orange)
+   * - 31-60: Medium (amber/accent)
+   * - 0-30: Low (green/success)
+   */
   const scoreColor: [number, number, number] = 
     results.riskScore >= 81 ? COLORS.danger :
-    results.riskScore >= 61 ? [255, 165, 0] : // Orange
+    results.riskScore >= 61 ? [255, 165, 0] : // Orange for high risk
     results.riskScore >= 31 ? COLORS.accent :
     COLORS.success;
 
@@ -113,8 +125,12 @@ export function exportToPDF(results: ScanResults, companyName?: string): void {
 
   yPos += 8;
 
-  // Summary boxes
-  const boxWidth = (pageWidth - 2 * margin - 20) / 3;
+  /**
+   * Calculate summary box dimensions:
+   * - 3 boxes side by side with 10px spacing between them
+   * - Total available width = page width minus left/right margins minus spacing
+   */
+  const boxWidth = (pageWidth - 2 * margin - 20) / 3; // 20px = 2 * 10px spacing
   const boxHeight = 30;
 
   // Total Findings
@@ -170,25 +186,31 @@ export function exportToPDF(results: ScanResults, companyName?: string): void {
       finding.term.description.substring(0, 60) + (finding.term.description.length > 60 ? "..." : ""),
     ]);
 
+    /**
+     * Generate table using jspdf-autotable plugin
+     * Automatically handles pagination, column sizing, and styling
+     */
     autoTable(doc, {
-      startY: yPos,
-      head: [["#", "Term", "Line", "Regulation", "Description"]],
-      body: criticalData,
+      startY: yPos, // Start table at current vertical position
+      head: [["#", "Term", "Line", "Regulation", "Description"]], // Table headers
+      body: criticalData, // Table rows (array of arrays)
       headStyles: {
-        fillColor: COLORS.danger,
-        textColor: [255, 255, 255],
+        fillColor: COLORS.danger, // Red background for critical findings header
+        textColor: [255, 255, 255], // White text
         fontStyle: "bold",
       },
       bodyStyles: {
-        textColor: [0, 0, 0],
+        textColor: [0, 0, 0], // Black text for body
       },
       alternateRowStyles: {
-        fillColor: [255, 245, 245],
+        fillColor: [255, 245, 245], // Light red tint for alternating rows
       },
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 8 },
+      margin: { left: margin, right: margin }, // Match page margins
+      styles: { fontSize: 8 }, // Small font to fit more data
     });
 
+    // Update vertical position to after the table (with 10px spacing)
+    // finalY is set by autoTable after rendering
     yPos = (doc as any).lastAutoTable.finalY + 10;
   }
 
@@ -310,10 +332,17 @@ export function exportToPDF(results: ScanResults, companyName?: string): void {
       doc.setFont("helvetica", "normal");
       doc.text(`Line ${finding.lineNumber} • ${finding.term.regulation}`, margin + 18, yPos + 7);
 
-      // Context
+      /**
+       * Display context around the matched term
+       * splitTextToSize automatically wraps text to fit within specified width
+       * Returns array of lines that fit within the width constraint
+       */
       doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      const contextLines = doc.splitTextToSize(`Context: ${finding.context}`, pageWidth - 2 * margin - 18);
+      doc.setTextColor(100, 100, 100); // Gray color for context
+      const contextLines = doc.splitTextToSize(
+        `Context: ${finding.context}`, 
+        pageWidth - 2 * margin - 18 // Available width (page width minus margins and left padding)
+      );
       doc.text(contextLines, margin + 18, yPos + 14);
 
       // Description
@@ -344,14 +373,26 @@ export function exportToPDF(results: ScanResults, companyName?: string): void {
         });
       }
 
+      /**
+       * Calculate new vertical position after rendering this finding:
+       * - Base offset: 14px
+       * - Context lines: number of lines * 4px line height
+       * - Description lines: number of lines * 4px line height
+       * - Alternatives: number of alternatives * 5px line height
+       * - Bottom spacing: 15px
+       */
       yPos += 14 + contextLines.length * 4 + descLines.length * 4 + (finding.term.alternatives?.length || 0) * 5 + 15;
     });
   }
 
-  // ========== FOOTER ==========
+  /**
+   * ========== FOOTER ==========
+   * Add footer to every page with disclaimer and page numbers
+   * Must iterate through all pages since footer is added after content generation
+   */
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
+    doc.setPage(i); // Switch to page i
     
     // Footer line
     doc.setDrawColor(...COLORS.gray);
@@ -372,7 +413,11 @@ export function exportToPDF(results: ScanResults, companyName?: string): void {
     doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: "right" });
   }
 
-  // ========== SAVE PDF ==========
+  /**
+   * ========== SAVE PDF ==========
+   * Generate filename with current date and trigger browser download
+   * Format: green-claim-report-YYYY-MM-DD.pdf
+   */
   const fileName = `green-claim-report-${new Date().toISOString().split("T")[0]}.pdf`;
-  doc.save(fileName);
+  doc.save(fileName); // Triggers browser download dialog
 }
