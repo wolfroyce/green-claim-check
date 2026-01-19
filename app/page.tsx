@@ -13,6 +13,9 @@ import { Shield, CheckCircle, AlertTriangle, TrendingUp, Users, FileText, Zap, A
 import Link from "next/link";
 import FineCalculatorSection from "@/components/landing/FineCalculator";
 
+// Grid pattern SVG as base64 - extracted to constant to avoid Webpack serialization warnings
+const GRID_PATTERN_BG = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+";
+
 export default function LandingPage() {
   const { t } = useLanguage();
   const router = useRouter();
@@ -29,6 +32,18 @@ export default function LandingPage() {
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Scroll to demo section if hash is present on page load
+  useEffect(() => {
+    if (window.location.hash === '#demo-section') {
+      setTimeout(() => {
+        const section = document.getElementById('demo-section');
+        if (section) {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  }, []);
 
   const handleDemoScan = () => {
     // Get text from the active tab
@@ -214,14 +229,30 @@ export default function LandingPage() {
   };
 
   // Fetch text from URL
+  // Normalize URL: add http:// if missing, handle www. optionally
+  const normalizeUrl = (url: string): string => {
+    let normalized = url.trim();
+    
+    // Remove leading/trailing whitespace
+    normalized = normalized.trim();
+    
+    // If it doesn't start with http:// or https://, add https://
+    if (!normalized.match(/^https?:\/\//i)) {
+      normalized = 'https://' + normalized;
+    }
+    
+    return normalized;
+  };
+
   const fetchUrlContent = async (url: string): Promise<string> => {
     try {
+      const normalizedUrl = normalizeUrl(url);
       const response = await fetch('/api/fetch-url', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: normalizedUrl }),
       });
 
       if (!response.ok) {
@@ -246,13 +277,15 @@ export default function LandingPage() {
 
     setIsFetchingUrl(true);
     try {
-      const text = await fetchUrlContent(urlInput.trim());
+      const normalizedUrl = normalizeUrl(urlInput.trim());
+      const text = await fetchUrlContent(normalizedUrl);
       if (!text.trim()) {
         toast.warning('Kein Textinhalt auf der Seite gefunden');
         return;
       }
       const truncatedText = text.slice(0, 500); // Demo limit
       setUrlText(truncatedText); // Store in urlText, not demoText
+      setUrlInput(normalizedUrl); // Store normalized URL for display
       // Don't switch tabs - stay in URL tab
       toast.success('URL-Inhalt erfolgreich geladen');
     } catch (error: any) {
@@ -273,7 +306,7 @@ export default function LandingPage() {
         
         <div className="container mx-auto px-4 relative z-10">
           {/* Badge oben */}
-          <div className="text-center mb-6 fade-in-up">
+          <div className="text-center mb-4 fade-in-up">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-2 text-xs md:text-sm font-medium text-white/90">
               <CheckCircle className="w-4 h-4 text-white" />
               <span>{t.hero.trustBadge || "Basierend auf EU-Richtlinie 2024/825"}</span>
@@ -281,9 +314,9 @@ export default function LandingPage() {
           </div>
 
           {/* Hero Headline & Subheadline */}
-          <div className="text-center mb-8 md:mb-10 max-w-4xl mx-auto">
+          <div className="text-center mb-6 md:mb-8 max-w-4xl mx-auto">
             <div className="fade-in-up">
-              <h1 className="mb-6 md:mb-8 text-4xl md:text-5xl lg:text-6xl font-bold text-balance text-white drop-shadow-lg leading-tight">
+              <h1 className="mb-4 md:mb-5 text-4xl md:text-5xl lg:text-6xl font-bold text-balance text-white drop-shadow-lg leading-tight">
                 Vermeiden Sie Bußgelder bis zu <span className="text-emerald-400">4%</span><br />
                 Ihres jährlichen EU-Umsatzes
                 <span className="block text-2xl md:text-3xl text-emerald-300 mt-2 font-normal">
@@ -293,7 +326,7 @@ export default function LandingPage() {
             </div>
             
             <div className="fade-in-up-delay-1">
-              <p className="text-lg md:text-xl text-emerald-100 max-w-3xl mx-auto text-balance mb-8 leading-relaxed">
+              <p className="text-lg md:text-xl text-emerald-100 max-w-3xl mx-auto text-balance mb-6 leading-relaxed">
                 Prüfen Sie Ihre Marketing-Aussagen automatisch auf EU-Compliance –{" "}
                 <span className="font-semibold text-white">in Sekunden, nicht Stunden.</span>
               </p>
@@ -395,7 +428,7 @@ export default function LandingPage() {
       <section id="demo-section" className="relative py-16 md:py-20 overflow-hidden scroll-mt-20">
         {/* Gradient Background - same as Greenwashing-Krise */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-900"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
+        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url('${GRID_PATTERN_BG}')` }}></div>
         
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-5xl mx-auto fade-in-up-delay-4">
@@ -816,7 +849,7 @@ export default function LandingPage() {
       <section className="relative py-16 md:py-20 overflow-hidden">
         {/* Gradient Background - same as Demo Section */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-900"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
+        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url('${GRID_PATTERN_BG}')` }}></div>
         
         <div className="container mx-auto px-4 relative z-10">
           {/* Badge ähnlich Hero */}
@@ -887,7 +920,7 @@ export default function LandingPage() {
       <section id="features-section" className="relative py-20 md:py-24 overflow-hidden scroll-mt-20">
         {/* Gradient Background - same as Demo Section */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-900"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
+        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url('${GRID_PATTERN_BG}')` }}></div>
         
         <div className="container mx-auto px-4 relative z-10">
           <h2 className="text-center mb-16 md:mb-20 text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
@@ -1039,7 +1072,7 @@ export default function LandingPage() {
       <section className="relative py-12 md:py-16 overflow-hidden">
         {/* Gradient Background - same as Demo Section */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-900"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
+        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url('${GRID_PATTERN_BG}')` }}></div>
         
         <div className="container mx-auto px-4 relative z-10">
           <h2 className="text-center mb-10 md:mb-12 text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">

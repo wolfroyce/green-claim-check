@@ -47,8 +47,15 @@ export function Header() {
         block: 'start'
       });
     } else {
-      // On other pages, navigate to homepage
-      router.push('/');
+      // On other pages, navigate to homepage with hash, then scroll after page loads
+      router.push('/#demo-section');
+      // After navigation, scroll to demo section
+      setTimeout(() => {
+        const section = document.getElementById('demo-section');
+        if (section) {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
     }
     setIsMobileMenuOpen(false);
   };

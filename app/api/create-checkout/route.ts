@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { priceId, plan, billingPeriod } = body;
+    const { priceId, plan, billingPeriod, cancelUrl } = body;
 
     // Validate input
     if (!priceId && (!plan || !billingPeriod)) {
@@ -53,6 +53,32 @@ export async function POST(req: NextRequest) {
     // Get base URL
     const baseUrl = process.env.NEXT_PUBLIC_URL || req.nextUrl.origin;
 
+    // Get cancel URL: use provided cancelUrl, or referer header, or fallback to pricing
+    const referer = req.headers.get('referer');
+    let cancel_url = `${baseUrl}/pricing`; // Default fallback
+    
+    if (cancelUrl) {
+      // Use provided cancelUrl if it's a valid URL on our domain
+      try {
+        const url = new URL(cancelUrl, baseUrl);
+        if (url.origin === baseUrl || url.origin === req.nextUrl.origin) {
+          cancel_url = url.toString();
+        }
+      } catch (e) {
+        // Invalid URL, use default
+      }
+    } else if (referer) {
+      // Use referer if it's from our domain
+      try {
+        const refererUrl = new URL(referer);
+        if (refererUrl.origin === baseUrl || refererUrl.origin === req.nextUrl.origin) {
+          cancel_url = referer;
+        }
+      } catch (e) {
+        // Invalid referer, use default
+      }
+    }
+
     // Create Stripe Checkout Session
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -63,7 +89,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       success_url: `${baseUrl}/app?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/pricing`,
+      cancel_url: cancel_url,
       customer_email: authSession.user.email,
       metadata: {
         userId: authSession.user.id,

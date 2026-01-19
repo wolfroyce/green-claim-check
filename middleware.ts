@@ -79,6 +79,20 @@ export async function middleware(req: NextRequest) {
     },
   });
 
+  const { pathname } = req.nextUrl;
+
+  // Protected routes - require authentication
+  const protectedRoutes = ['/app'];
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+
+  // Protected API routes
+  const protectedApiRoutes = ['/api/scan'];
+  const isProtectedApiRoute = protectedApiRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+
   // Get session
   let session = null;
   try {
@@ -141,22 +155,8 @@ export async function middleware(req: NextRequest) {
     session = null;
   }
 
-  const { pathname } = req.nextUrl;
-
-  // Protected routes - require authentication
-  const protectedRoutes = ['/app'];
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
-
-  // Protected API routes
-  const protectedApiRoutes = ['/api/scan'];
-  const isProtectedApiRoute = protectedApiRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
-
   // Public routes - allow access without authentication
-  const publicRoutes = ['/', '/auth', '/pricing', '/api/webhook'];
+  const publicRoutes = ['/', '/auth', '/pricing', '/api/webhook', '/api/fetch-url'];
   const isPublicRoute = publicRoutes.some((route) =>
     pathname.startsWith(route)
   );

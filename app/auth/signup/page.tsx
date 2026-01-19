@@ -10,7 +10,7 @@ import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { signupSchema, type SignupFormData } from "@/lib/validations/auth";
 import { toast } from "sonner";
-import { Shield, User, Mail, Lock, Github, Chrome, ArrowRight, Check } from "lucide-react";
+import { Shield, User, Mail, Lock, Github, Chrome, ArrowRight, Check, Eye, EyeOff } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -24,6 +24,8 @@ export default function SignupPage() {
   const [errors, setErrors] = useState<Partial<Record<keyof SignupFormData, string>>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSocialLoading, setIsSocialLoading] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -264,11 +266,11 @@ export default function SignupPage() {
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={handleChange}
                   className={`
-                    w-full pl-10 pr-4 py-2.5 border rounded-lg
+                    w-full pl-10 pr-12 py-2.5 border rounded-lg
                     focus:ring-2 focus:ring-primary/20 focus:border-primary
                     dark:bg-gray-700 dark:border-gray-600 dark:text-white
                     transition-colors
@@ -276,6 +278,18 @@ export default function SignupPage() {
                   `}
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
               </div>
               <PasswordStrength password={formData.password} />
               {errors.password && (
@@ -296,11 +310,11 @@ export default function SignupPage() {
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   className={`
-                    w-full pl-10 pr-4 py-2.5 border rounded-lg
+                    w-full pl-10 pr-12 py-2.5 border rounded-lg
                     focus:ring-2 focus:ring-primary/20 focus:border-primary
                     dark:bg-gray-700 dark:border-gray-600 dark:text-white
                     transition-colors
@@ -308,6 +322,18 @@ export default function SignupPage() {
                   `}
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
               </div>
               {errors.confirmPassword && (
                 <p className="mt-1 text-sm text-red-500">{errors.confirmPassword}</p>

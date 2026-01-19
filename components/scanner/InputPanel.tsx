@@ -53,7 +53,9 @@ export const InputPanel: React.FC<InputPanelProps> = ({
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string>("Free");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [inputType, setInputType] = useState<"text" | "url">("text");
+  const [inputType, setInputType] = useState<"text" | "document" | "url">("text");
+  const [documentText, setDocumentText] = useState(""); // Text from document
+  const [urlText, setUrlText] = useState(""); // Text from URL
   const [urlInput, setUrlInput] = useState("");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
 
@@ -222,12 +224,14 @@ export const InputPanel: React.FC<InputPanelProps> = ({
 
     try {
       const text = await parseFileContent(file);
+      setDocumentText(text);
       onInputChange(text);
       toast.success(`File "${file.name}" loaded successfully`);
     } catch (error) {
       console.error('Error parsing file:', error);
       toast.error('Failed to parse file. Please try again.');
       setUploadedFile(null);
+      setDocumentText('');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -276,6 +280,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({
   // Remove uploaded file
   const handleRemoveFile = () => {
     setUploadedFile(null);
+    setDocumentText('');
     onInputChange('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -287,17 +292,35 @@ export const InputPanel: React.FC<InputPanelProps> = ({
     setScanSuccess(false);
     setShowHighlights(false);
     setUploadedFile(null);
+    setDocumentText('');
     setUrlInput("");
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
+  // Normalize URL: add http:// if missing, handle www. optionally
+  const normalizeUrl = (url: string): string => {
+    let normalized = url.trim();
+    
+    // Remove leading/trailing whitespace
+    normalized = normalized.trim();
+    
+    // If it doesn't start with http:// or https://, add https://
+    if (!normalized.match(/^https?:\/\//i)) {
+      normalized = 'https://' + normalized;
+    }
+    
+    return normalized;
+  };
+
   // Fetch text from URL
   const fetchUrlContent = async (url: string): Promise<string> => {
     try {
+      const normalizedUrl = normalizeUrl(url);
+      
       // Validate URL
-      const urlObj = new URL(url);
+      const urlObj = new URL(normalizedUrl);
       if (!['http:', 'https:'].includes(urlObj.protocol)) {
         throw new Error('URL must start with http:// or https://');
       }
@@ -309,7 +332,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: normalizedUrl }),
       });
 
       if (!response.ok) {
@@ -337,13 +360,16 @@ export const InputPanel: React.FC<InputPanelProps> = ({
 
     setIsFetchingUrl(true);
     try {
-      const text = await fetchUrlContent(urlInput.trim());
+      const normalizedUrl = normalizeUrl(urlInput.trim());
+      const text = await fetchUrlContent(normalizedUrl);
       if (!text.trim()) {
         toast.warning('No text content found on the page');
         return;
       }
+      setUrlText(text);
       onInputChange(text);
-      setInputType('text'); // Switch to text view after fetching
+      setUrlInput(normalizedUrl); // Store normalized URL for display
+      // Don't switch tabs - stay in URL tab
       toast.success('URL content loaded successfully');
     } catch (error: any) {
       console.error('Error fetching URL content:', error);
@@ -474,7 +500,17 @@ export const InputPanel: React.FC<InputPanelProps> = ({
   };
 
   const handleScan = async () => {
-    if (!inputText.trim() || isScanning) return;
+    // Get text from the active tab
+    let textToScan = "";
+    if (inputType === 'text') {
+      textToScan = inputText;
+    } else if (inputType === 'document') {
+      textToScan = documentText;
+    } else if (inputType === 'url') {
+      textToScan = urlText;
+    }
+
+    if (!textToScan.trim() || isScanning) return;
 
     // Check scan limits before scanning
     try {
@@ -509,8 +545,11 @@ export const InputPanel: React.FC<InputPanelProps> = ({
       // Artificial delay for better UX
       await new Promise((resolve) => setTimeout(resolve, 500));
 
+      // Update inputText for highlighting (use the text from active tab)
+      onInputChange(textToScan);
+
       // Perform scan
-      const results = scanTextNew(inputText);
+      const results = scanTextNew(textToScan);
 
       // Call legacy onScan if provided (for backward compatibility)
       if (onScan) {
@@ -545,7 +584,6 @@ export const InputPanel: React.FC<InputPanelProps> = ({
           <button
             onClick={() => {
               setInputType('text');
-              setUrlInput('');
             }}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
               inputType === 'text'
@@ -555,7 +593,23 @@ export const InputPanel: React.FC<InputPanelProps> = ({
           >
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              <span>Text / Document</span>
+              <span>Text</span>
+            </div>
+          </button>
+          <button
+            onClick={() => {
+              setInputType('document');
+              setUrlInput('');
+            }}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              inputType === 'document'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              <span>Dokument</span>
             </div>
           </button>
           <button
@@ -573,104 +627,29 @@ export const InputPanel: React.FC<InputPanelProps> = ({
           </button>
         </div>
 
-        {/* URL Input Section */}
-        {inputType === 'url' && (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Enter URL to scan
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                  placeholder="https://example.com/page"
-                  className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-800 dark:text-white"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleUrlSubmit();
-                    }
-                  }}
-                />
-                <Button
-                  onClick={handleUrlSubmit}
-                  disabled={!urlInput.trim() || isFetchingUrl}
-                  variant="primary"
-                  className="px-6"
-                >
-                  {isFetchingUrl ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Fetching...
-                    </>
-                  ) : (
-                    <>
-                      <LinkIcon className="w-4 h-4 mr-2" />
-                      Fetch
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-            {inputText && inputText.length > 0 && (
-              <div className="p-3 bg-primary/5 dark:bg-primary/10 rounded-lg border border-primary/20">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  <strong>Source:</strong> URL ({urlInput || 'Fetched URL'})
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                  Content loaded from URL. Switch to "Text / Document" tab to view and edit.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Header with Character Counter */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {inputType === 'url' ? 'URL Content' : t.app.inputText}
-          </h2>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {inputText.length} {t.app.characters}
-          </div>
-        </div>
-
-        {/* File Info */}
-        {uploadedFile && (
-          <div className="flex items-center justify-between p-3 bg-primary/5 dark:bg-primary/10 rounded-lg border border-primary/20">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <File className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                {uploadedFile.name}
-              </span>
-              {isUploading && (
-                <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
-              )}
-            </div>
-            <button
-              onClick={handleRemoveFile}
-              className="p-1 hover:bg-primary/10 rounded text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-              title="Remove file"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Textarea with Highlight Overlay and Drag-Drop */}
+        {/* Text Tab - Textarea */}
         {inputType === 'text' && (
-        <div
-          className={`relative border-2 border-dashed rounded-lg transition-colors ${
-            isDragging
-              ? 'border-primary bg-primary/5 dark:bg-primary/10'
-              : 'border-transparent'
-          }`}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
+          <>
+            {/* Header with Character Counter */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                {t.app.inputText}
+              </h2>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {inputText.length} {t.app.characters}
+              </div>
+            </div>
+            <div
+              className={`relative border-2 border-dashed rounded-lg transition-colors ${
+                isDragging
+                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                  : 'border-transparent'
+              }`}
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
           {isDragging && (
             <div className="absolute inset-0 z-20 bg-primary/10 dark:bg-primary/20 rounded-lg flex items-center justify-center pointer-events-none">
               <div className="text-center">
@@ -709,66 +688,175 @@ export const InputPanel: React.FC<InputPanelProps> = ({
               {renderHighlightedText(inputText, scanResults)}
             </div>
           )}
-        </div>
+            </div>
+          </>
         )}
 
-        {/* Textarea View for URL content */}
-        {inputType === 'url' && inputText && (
-          <div className="relative border-2 border-dashed rounded-lg border-transparent">
-            <textarea
-              value={inputText}
-              onChange={(e) => onInputChange(e.target.value)}
-              placeholder="URL content will appear here after fetching..."
-              className={`w-full min-h-[400px] p-4 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-800 resize-y font-mono text-sm transition-all ${
-                showHighlights && scanResults 
-                  ? 'text-transparent caret-gray-900 dark:caret-white' 
-                  : 'dark:text-white'
+        {/* Document Tab - File Upload */}
+        {inputType === 'document' && (
+          <>
+            {/* File Upload Area with Drag & Drop */}
+            <div 
+              className={`relative border-2 border-dashed rounded-lg transition-colors mb-4 ${
+                isDragging
+                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                  : 'border-gray-300 dark:border-gray-600'
               }`}
-              readOnly={false}
-            />
-            
-            {/* Highlight Overlay for URL content */}
-            {showHighlights && scanResults && inputText && (
-              <div
-                className="absolute inset-0 z-10 p-4 font-mono text-sm whitespace-pre-wrap break-words overflow-hidden rounded-lg"
-                style={{
-                  lineHeight: '1.5',
-                  fontFamily: 'JetBrains Mono, monospace',
-                  pointerEvents: 'none',
-                }}
-              >
-                {renderHighlightedText(inputText, scanResults)}
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {isDragging && (
+                <div className="absolute inset-0 z-20 bg-primary/10 dark:bg-primary/20 rounded-lg flex items-center justify-center pointer-events-none">
+                  <div className="text-center">
+                    <Upload className="w-12 h-12 text-primary mx-auto mb-2" />
+                    <p className="text-sm font-medium text-primary">Datei hier ablegen</p>
+                  </div>
+                </div>
+              )}
+
+              {/* File Upload Button */}
+              <div className="flex justify-center p-6">
+                <label className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg cursor-pointer transition-colors text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Verarbeitung...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>Dokument hochladen</span>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt,.docx,.pdf"
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* File Info */}
+            {uploadedFile && (
+              <div className="flex items-center justify-between p-3 bg-primary/5 dark:bg-primary/10 rounded-lg border border-primary/20 mb-4">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <File className="w-4 h-4 text-primary flex-shrink-0" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                    {uploadedFile.name}
+                  </span>
+                  {isUploading && (
+                    <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+                  )}
+                </div>
+                <button
+                  onClick={handleRemoveFile}
+                  className="p-1 hover:bg-primary/10 rounded text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                  title="Remove file"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             )}
-          </div>
+
+            {/* Document Content Textarea */}
+            {uploadedFile && documentText && (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Dokument-Inhalt
+                  </h2>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {documentText.length} {t.app.characters}
+                  </div>
+                </div>
+                <div className="relative border-2 border-dashed rounded-lg border-transparent">
+                  <textarea
+                    value={documentText}
+                    readOnly
+                    className="w-full min-h-[400px] p-4 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-800 resize-y font-mono text-sm dark:text-white"
+                  />
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* URL Tab - URL Input */}
+        {inputType === 'url' && (
+          <>
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Enter URL to scan
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="https://example.com/page"
+                    className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-800 dark:text-white"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleUrlSubmit();
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={handleUrlSubmit}
+                    disabled={!urlInput.trim() || isFetchingUrl}
+                    variant="primary"
+                    className="px-6"
+                  >
+                    {isFetchingUrl ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Fetching...
+                      </>
+                    ) : (
+                      <>
+                        <LinkIcon className="w-4 h-4 mr-2" />
+                        Fetch
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* URL Content Textarea */}
+            {urlText && (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    URL-Inhalt{urlInput ? ` von ${urlInput}` : ''}
+                  </h2>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {urlText.length} {t.app.characters}
+                  </div>
+                </div>
+                <div className="relative border-2 border-dashed rounded-lg border-transparent">
+                  <textarea
+                    value={urlText}
+                    readOnly
+                    className="w-full min-h-[400px] p-4 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-800 resize-y font-mono text-sm dark:text-white"
+                  />
+                </div>
+              </>
+            )}
+          </>
         )}
 
         {/* Action Buttons Row */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* File Upload */}
-          <label className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg cursor-pointer transition-colors text-sm font-medium text-gray-700 dark:text-gray-300">
-            {isUploading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <>
-                <Upload className="w-4 h-4" />
-                <span>Upload Document</span>
-              </>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".txt,.docx,.pdf"
-              onChange={handleFileInputChange}
-              className="hidden"
-              disabled={isUploading}
-            />
-          </label>
-
-          {/* Templates Dropdown */}
+          {/* Templates Dropdown - Only show in Text tab */}
+          {inputType === 'text' && (
           <div className="relative">
             <button
               onClick={() => setShowTemplates(!showTemplates)}
@@ -804,6 +892,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({
               </>
             )}
           </div>
+          )}
 
           {/* Show Highlights Toggle */}
           {scanResults && scanResults.summary.totalFindings > 0 && (
@@ -830,7 +919,9 @@ export const InputPanel: React.FC<InputPanelProps> = ({
           )}
 
           {/* Clear Button */}
-          {inputText && (
+          {((inputType === 'text' && inputText) || 
+            (inputType === 'document' && documentText) || 
+            (inputType === 'url' && urlText)) && (
             <button
               onClick={handleClear}
               className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -843,7 +934,12 @@ export const InputPanel: React.FC<InputPanelProps> = ({
           {/* Scan Button - Prominent, Green */}
           <Button
             onClick={handleScan}
-            disabled={!inputText.trim() || scanning}
+            disabled={
+              scanning || 
+              (inputType === 'text' && !inputText.trim()) ||
+              (inputType === 'document' && !documentText.trim()) ||
+              (inputType === 'url' && !urlText.trim())
+            }
             className={`ml-auto px-8 py-2.5 text-base font-semibold transition-all ${
               scanning ? "animate-pulse" : ""
             } ${scanSuccess ? "animate-success-flash bg-success" : ""}`}

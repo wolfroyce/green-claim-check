@@ -1,9 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Card } from "@/components/ui/Card";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { createSupabaseClient } from "@/lib/supabase/client";
+import { getUserSubscription } from "@/lib/supabase/subscriptions";
+import { getCurrentUserInfo } from "@/lib/user-utils";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -14,17 +17,55 @@ import {
 
 export default function ReportsPage() {
   const { t } = useLanguage();
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userInitials, setUserInitials] = useState<string | null>(null);
+  
+  // Load cached user info after mount to avoid hydration mismatch
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("userInfo");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+            setUserName(parsed.userName);
+            setUserInitials(parsed.userInitials);
+          }
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+  }, []);
+  const [scansRemaining, setScansRemaining] = useState<number | null>(null);
 
   // Placeholder data - will be replaced with real data later
   const hasData = false; // Set to true to see placeholder charts
+
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      const userInfo = await getCurrentUserInfo();
+      setUserName(userInfo.userName);
+      setUserInitials(userInfo.userInitials);
+      
+      // Fetch subscription to get scans_remaining
+      if (userInfo.userId) {
+        const { data: subData } = await getUserSubscription(userInfo.userId);
+        if (subData) {
+          setScansRemaining(subData.scans_remaining);
+        }
+      }
+    };
+    loadUserInfo();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-gray-900">
       <AppHeader
         activeTab="reports"
-        creditsRemaining={97}
-        userName="John Doe"
-        userInitials="JD"
+        creditsRemaining={scansRemaining ?? 0}
+        userName={userName || "User"}
+        userInitials={userInitials || "U"}
       />
 
       <main className="container mx-auto px-4 py-8">

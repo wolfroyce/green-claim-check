@@ -10,22 +10,15 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { getUserSubscription, getUserUsageStats } from "@/lib/supabase/subscriptions";
 import { getUserScans } from "@/lib/supabase/scans";
+import { getCurrentUserInfo } from "@/lib/user-utils";
 import { toast } from "sonner";
 import { 
   Settings, 
   CreditCard, 
-  Calendar,
   TrendingUp,
   BarChart3,
-  Download,
-  ExternalLink,
-  Crown,
-  ArrowUpRight,
-  Loader2
 } from "lucide-react";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -52,8 +45,27 @@ export default function SettingsPage() {
     chartData: UsageChartData[];
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingPortal, setIsLoadingPortal] = useState(false);
   const [scansRemaining, setScansRemaining] = useState<number | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userInitials, setUserInitials] = useState<string | null>(null);
+  
+  // Load cached user info after mount to avoid hydration mismatch
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("userInfo");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+            setUserName(parsed.userName);
+            setUserInitials(parsed.userInitials);
+          }
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -66,6 +78,11 @@ export default function SettingsPage() {
           router.push("/auth/login");
           return;
         }
+
+        // Get user display name and initials (will use cache if available)
+        const userInfo = await getCurrentUserInfo();
+        setUserName(userInfo.userName);
+        setUserInitials(userInfo.userInitials);
 
         // Fetch subscription
         const { data: subData, error: subError } = await getUserSubscription(user.id);
@@ -83,28 +100,9 @@ export default function SettingsPage() {
           setUsageStats(usageData);
         }
 
-        // Calculate scans remaining based on plan
+        // Use scans_remaining directly from database
         if (subData) {
-          const plan = subData.plan || 'free';
-          const { data: scans } = await getUserScans(user.id);
-          
-          // Get scans from this month
-          const now = new Date();
-          const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          const monthlyScans = scans?.filter(
-            (scan) => new Date(scan.created_at) >= thisMonthStart
-          ) || [];
-
-          // Plan limits
-          const planLimits: Record<string, number> = {
-            free: 3,
-            starter: 100,
-            pro: Infinity,
-          };
-
-          const limit = planLimits[plan] || 3;
-          const remaining = limit === Infinity ? null : Math.max(0, limit - monthlyScans.length);
-          setScansRemaining(remaining);
+          setScansRemaining(subData.scans_remaining);
         }
       } catch (error) {
         console.error("Error fetching settings data:", error);
@@ -117,51 +115,15 @@ export default function SettingsPage() {
     fetchData();
   }, [router]);
 
-  const handleManageSubscription = async () => {
-    setIsLoadingPortal(true);
-    try {
-      const response = await fetch("/api/create-portal-session", {
-        method: "POST",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create portal session");
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (error: any) {
-      console.error("Error opening portal:", error);
-      toast.error(error.message || "Failed to open billing portal");
-      setIsLoadingPortal(false);
-    }
-  };
-
-  const handleUpgrade = () => {
-    router.push("/#pricing-section");
-  };
-
   const plan = subscription?.plan || "free";
-  const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
-  const isPaidPlan = plan !== "free";
-
-  const getRenewalDate = () => {
-    if (!subscription?.current_period_end) return null;
-    return new Date(subscription.current_period_end);
-  };
-
-  const renewalDate = getRenewalDate();
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-gray-900">
       <AppHeader
         activeTab="settings"
         creditsRemaining={scansRemaining ?? 0}
-        userName="User"
-        userInitials="U"
+        userName={userName || "User"}
+        userInitials={userInitials || "U"}
       />
 
       <main className="container mx-auto px-4 py-8">
@@ -182,123 +144,14 @@ export default function SettingsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Current Plan - Left Column */}
+            {/* Usage Section - Left Column */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Current Plan Section */}
-              <Card variant="elevated" className="shadow-sm">
-                <div className="flex items-center gap-3 mb-6">
-                  <Crown className="w-5 h-5 text-primary" />
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Current Plan
-                  </h2>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Crown className="w-6 h-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-lg text-gray-900 dark:text-white">
-                          {planName} Plan
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {scansRemaining !== null
-                            ? `${scansRemaining} scans remaining this month`
-                            : "Unlimited scans"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {renewalDate && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                      <Calendar className="w-4 h-4" />
-                      <span>
-                        {isPaidPlan
-                          ? `Renews on ${renewalDate.toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}`
-                          : "No active subscription"}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    {isPaidPlan ? (
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleManageSubscription}
-                        isLoading={isLoadingPortal}
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Manage Subscription
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="primary"
-                        className="w-full"
-                        onClick={handleUpgrade}
-                      >
-                        Upgrade Plan
-                        <ArrowUpRight className="w-4 h-4 ml-2" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </Card>
-
-              {/* Billing Section */}
-              {isPaidPlan && (
-                <Card variant="elevated" className="shadow-sm">
-                  <div className="flex items-center gap-3 mb-6">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      Billing
-                    </h2>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Payment Method
-                      </p>
-                      <p className="text-gray-900 dark:text-white font-medium">
-                        •••• •••• •••• (Update in Stripe Portal)
-                      </p>
-                    </div>
-
-                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                        Invoices
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                        View and download invoices from the Stripe Customer Portal
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleManageSubscription}
-                        isLoading={isLoadingPortal}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        View Invoices
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              )}
-
               {/* Usage Section */}
               <Card variant="elevated" className="shadow-sm">
-                <div className="flex items-center gap-3 mb-6">
-                  <BarChart3 className="w-5 h-5 text-primary" />
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Usage
-                  </h2>
-                </div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
+                  <BarChart3 className="w-5 h-5 text-primary flex-shrink-0" />
+                  <span>Usage</span>
+                </h2>
                 <div className="space-y-6">
                   {/* Stats Grid */}
                   <div className="grid grid-cols-3 gap-4">
@@ -392,17 +245,14 @@ export default function SettingsPage() {
                     <BarChart3 className="w-4 h-4 mr-2" />
                     View History
                   </Button>
-                  {isPaidPlan && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={handleManageSubscription}
-                      isLoading={isLoadingPortal}
-                    >
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      Billing Portal
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => router.push("/app/billing")}
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Billing & Subscription
+                  </Button>
                 </div>
               </Card>
             </div>

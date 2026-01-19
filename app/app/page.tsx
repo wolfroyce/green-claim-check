@@ -10,6 +10,7 @@ import { createSupabaseClient } from "@/lib/supabase/client";
 import { saveScan, getUserScans, type ScanRecord } from "@/lib/supabase/scans";
 import { getUserSubscription, type UserSubscription } from "@/lib/supabase/subscriptions";
 import { getScanLimit, isUnlimited } from "@/lib/subscription-limits";
+import { getCurrentUserInfo } from "@/lib/user-utils";
 import { toast } from "sonner";
 
 export default function AppPage() {
@@ -19,6 +20,26 @@ export default function AppPage() {
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [scansUsed, setScansUsed] = useState(0);
   const [scansRemaining, setScansRemaining] = useState<number | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userInitials, setUserInitials] = useState<string | null>(null);
+  
+  // Load cached user info after mount to avoid hydration mismatch
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("userInfo");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+            setUserName(parsed.userName);
+            setUserInitials(parsed.userInitials);
+          }
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+  }, []);
 
   const handleScanComplete = useCallback(async (scanResults: ScanResults) => {
     setResults(scanResults);
@@ -29,7 +50,9 @@ export default function AppPage() {
         const { error } = await saveScan(userId, scanResults);
         if (error) {
           console.error("Error saving scan:", error);
-          toast.error("Failed to save scan to history");
+          // Show more specific error message if available
+          const errorMessage = error.message || "Failed to save scan to history";
+          toast.error(errorMessage);
         } else {
           toast.success("Scan saved to history");
           
@@ -38,14 +61,18 @@ export default function AppPage() {
           setSubscription(subData);
           
           const plan = (subData?.plan || 'free') as 'free' | 'starter' | 'pro';
-          if (!isUnlimited(plan)) {
+          if (isUnlimited(plan)) {
+            setScansRemaining(null);
+          } else {
+            // Use scans_remaining directly from database
             setScansRemaining(subData?.scans_remaining ?? 0);
           }
           setScansUsed(prev => prev + 1);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Unexpected error saving scan:", error);
-        toast.error("Failed to save scan to history");
+        const errorMessage = error?.message || "Failed to save scan to history";
+        toast.error(errorMessage);
       }
     }
   }, [userId]);
@@ -57,6 +84,11 @@ export default function AppPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
+        
+        // Get user display name and initials (will use cache if available)
+        const userInfo = await getCurrentUserInfo();
+        setUserName(userInfo.userName);
+        setUserInitials(userInfo.userInitials);
 
         // Load subscription
         const { data: subData } = await getUserSubscription(user.id);
@@ -75,13 +107,12 @@ export default function AppPage() {
 
         setScansUsed(monthlyScans.length);
 
-        // Calculate remaining scans
+        // Use scans_remaining directly from database
         if (isUnlimited(plan)) {
           setScansRemaining(null);
         } else {
-          const limit = getScanLimit(plan);
-          const remaining = subData?.scans_remaining ?? (limit - monthlyScans.length);
-          setScansRemaining(Math.max(0, remaining));
+          // Use scans_remaining directly from database
+          setScansRemaining(subData?.scans_remaining ?? 0);
         }
       }
     };
@@ -122,11 +153,13 @@ export default function AppPage() {
                 const { error } = await saveScan(user.id, scanResults);
                 if (error) {
                   console.error("Error saving scan:", error);
+                  // Don't show error toast for auto-scan, just log it
                 } else {
                   toast.success('Willkommen! Ihr Demo-Text wurde automatisch analysiert und gespeichert.');
                 }
-              } catch (error) {
+              } catch (error: any) {
                 console.error("Error saving scan:", error);
+                // Don't show error toast for auto-scan, just log it
               }
             } else {
               toast.success('Willkommen! Ihr Demo-Text wurde automatisch analysiert.');
@@ -159,8 +192,8 @@ export default function AppPage() {
         creditsRemaining={scansRemaining}
         scansUsed={scansUsed}
         plan={subscription?.plan || "free"}
-        userName="User"
-        userInitials="U"
+        userName={userName || "User"}
+        userInitials={userInitials || "U"}
       />
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">

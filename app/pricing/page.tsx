@@ -11,6 +11,9 @@ import { CheckCircle, ArrowRight, ChevronDown, Shield, Lock, CreditCard, Check }
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
+// Grid pattern SVG as base64 - extracted to constant to avoid Webpack serialization warnings
+const GRID_PATTERN_BG = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+";
+
 export default function PricingPage() {
   const { t } = useLanguage();
   const router = useRouter();
@@ -46,6 +49,7 @@ export default function PricingPage() {
         body: JSON.stringify({
           plan: plan === 'basic' ? 'starter' : plan, // Map basic to starter in backend
           billingPeriod: isYearly ? 'yearly' : 'monthly',
+          cancelUrl: window.location.href, // Pass current page URL
         }),
       });
 
@@ -313,63 +317,69 @@ export default function PricingPage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-16 bg-white dark:bg-gray-800">
-        <div className="container mx-auto px-4 max-w-3xl">
-          <h2 className="text-center mb-12 md:mb-16 text-3xl font-bold">
+      <section className="relative py-12 md:py-16 overflow-hidden">
+        {/* Gradient Background - same as Demo Section */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-900"></div>
+        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url('${GRID_PATTERN_BG}')` }}></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <h2 className="text-center mb-10 md:mb-12 text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
             Häufig gestellte Fragen
           </h2>
-          <div className="space-y-4">
-            {[
-              {
-                question: "Kann ich jederzeit kündigen?",
-                answer: "Ja, alle Pläne sind monatlich kündbar ohne versteckte Gebühren.",
-              },
-              {
-                question: "Was passiert nach dem Free-Tier?",
-                answer: "Bei Erreichen des Limits erhalten Sie eine Benachrichtigung. Sie können jederzeit upgraden.",
-              },
-              {
-                question: "Sind die Preise inklusive MwSt.?",
-                answer: "Nein, alle Preise zzgl. 19% MwSt. für deutsche Kunden.",
-              },
-              {
-                question: "Wie funktioniert die 14-Tage-Testphase?",
-                answer: "Voller Zugang zu allen Features. Keine Kreditkarte erforderlich. Nach 14 Tagen automatische Umstellung oder Downgrade zu Free.",
-              },
-              {
-                question: "Bieten Sie Rabatte für NGOs oder Bildungseinrichtungen?",
-                answer: "Ja! Kontaktieren Sie uns für Sonderkonditionen.",
-              },
-              {
-                question: "Kann ich zwischen den Plänen wechseln?",
-                answer: "Ja, jederzeit upgraden oder downgraden. Bei Downgrade gilt die Änderung ab nächstem Abrechnungszeitraum.",
-              },
-              {
-                question: "Was sind \"Scans\"?",
-                answer: "Ein Scan = Eine Prüfung einer einzelnen Umweltaussage/Claim.",
-              },
-            ].map((faq, idx) => (
-              <Card
-                key={idx}
-                variant="outlined"
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setShowFAQ(showFAQ === idx ? null : idx)}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <h3 className="font-semibold flex-1">{faq.question}</h3>
-                  <ChevronDown
-                    className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
-                      showFAQ === idx ? "rotate-180" : ""
-                    }`}
-                  />
-                </div>
-                {showFAQ === idx && (
-                  <p className="mt-4 text-gray-600 dark:text-gray-400 animate-slide-up">
-                    {faq.answer}
-                  </p>
-                )}
-              </Card>
-            ))}
+          <div className="max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              {[
+                {
+                  question: "Kann ich jederzeit kündigen?",
+                  answer: "Ja, alle Pläne sind monatlich kündbar ohne versteckte Gebühren.",
+                },
+                {
+                  question: "Was passiert nach dem Free-Tier?",
+                  answer: "Bei Erreichen des Limits erhalten Sie eine Benachrichtigung. Sie können jederzeit upgraden.",
+                },
+                {
+                  question: "Sind die Preise inklusive MwSt.?",
+                  answer: "Nein, alle Preise zzgl. 19% MwSt. für deutsche Kunden.",
+                },
+                {
+                  question: "Wie funktioniert die 14-Tage-Testphase?",
+                  answer: "Voller Zugang zu allen Features. Keine Kreditkarte erforderlich. Nach 14 Tagen automatische Umstellung oder Downgrade zu Free.",
+                },
+                {
+                  question: "Bieten Sie Rabatte für NGOs oder Bildungseinrichtungen?",
+                  answer: "Ja! Kontaktieren Sie uns für Sonderkonditionen.",
+                },
+                {
+                  question: "Kann ich zwischen den Plänen wechseln?",
+                  answer: "Ja, jederzeit upgraden oder downgraden. Bei Downgrade gilt die Änderung ab nächstem Abrechnungszeitraum.",
+                },
+                {
+                  question: "Was sind \"Scans\"?",
+                  answer: "Ein Scan = Eine Prüfung einer einzelnen Umweltaussage/Claim.",
+                },
+              ].map((faq, idx) => (
+                <Card
+                  key={idx}
+                  variant="outlined"
+                  className="cursor-pointer hover:shadow-md hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-200"
+                  onClick={() => setShowFAQ(showFAQ === idx ? null : idx)}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="font-semibold text-base flex-1 text-gray-900 dark:text-white">{faq.question}</h3>
+                    <ChevronDown
+                      className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
+                        showFAQ === idx ? "rotate-180" : ""
+                      }`}
+                    />
+                  </div>
+                  {showFAQ === idx && (
+                    <p className="mt-3 text-sm text-gray-600 dark:text-gray-400 leading-relaxed animate-slide-up">
+                      {faq.answer}
+                    </p>
+                  )}
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </section>

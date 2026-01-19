@@ -2,10 +2,13 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { DarkModeToggle } from "@/components/ui/DarkModeToggle";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
+import { createSupabaseClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 import { 
   Leaf, 
   Search, 
@@ -21,7 +24,7 @@ import {
 import { formatUsageDisplay, getUsagePercentage, getEncouragingMessage, isUnlimited } from "@/lib/subscription-limits";
 
 interface AppHeaderProps {
-  activeTab?: "scanner" | "history" | "reports" | "settings";
+  activeTab?: "scanner" | "history" | "reports" | "settings" | "account" | "billing";
   creditsRemaining?: number | null;
   scansUsed?: number;
   plan?: "free" | "starter" | "pro";
@@ -30,7 +33,7 @@ interface AppHeaderProps {
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
-  activeTab = "scanner",
+  activeTab,
   creditsRemaining = null,
   scansUsed = 0,
   plan = "free",
@@ -38,6 +41,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   userInitials = "U",
 }) => {
   const { t } = useLanguage();
+  const router = useRouter();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -66,10 +70,64 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     { id: "settings", label: "Settings", icon: Settings, href: "/app/settings" },
   ];
 
+  const handleLogout = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    try {
+      // Close dropdown/menu immediately
+      setShowUserDropdown(false);
+      setShowMobileMenu(false);
+      
+      const supabase = createSupabaseClient();
+      
+      // Sign out with scope: 'local' to clear local session
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      
+      if (error) {
+        console.error('Error signing out:', error);
+        // Try to redirect anyway and clear local storage
+        if (typeof window !== 'undefined') {
+          localStorage.clear();
+          sessionStorage.clear();
+        }
+        router.push('/');
+        toast.error('Signed out locally. Please clear cookies if issues persist.');
+        return;
+      }
+      
+      // Clear local storage as well
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      
+      // Redirect to landing page
+      router.push('/');
+      router.refresh(); // Force refresh to clear any cached data
+      
+      toast.success('Successfully signed out');
+    } catch (error: any) {
+      console.error('Unexpected error during logout:', error);
+      
+      // Clear storage and redirect anyway
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      
+      router.push('/');
+      router.refresh();
+      toast.error('Signed out locally');
+    }
+  };
+
   const userMenuItems = [
     { id: "account", label: "Account", icon: User, href: "/app/account" },
     { id: "billing", label: "Billing", icon: CreditCard, href: "/app/billing" },
-    { id: "logout", label: "Logout", icon: LogOut, href: "/logout", action: () => console.log("Logout") },
+    { id: "logout", label: "Logout", icon: LogOut, href: "#", action: handleLogout },
   ];
 
   // Generate avatar color based on initials
@@ -266,6 +324,26 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   <div className="py-1">
                     {userMenuItems.map((item) => {
                       const Icon = item.icon;
+                      // For logout, use button instead of Link
+                      if (item.id === "logout") {
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setShowUserDropdown(false);
+                              if (item.action) {
+                                item.action(e);
+                              }
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      }
                       return (
                         <Link
                           key={item.id}
@@ -365,6 +443,26 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <div className="space-y-1">
                 {userMenuItems.map((item) => {
                   const Icon = item.icon;
+                  // For logout, use button instead of Link
+                  if (item.id === "logout") {
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowMobileMenu(false);
+                          if (item.action) {
+                            item.action(e);
+                          }
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-left"
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  }
                   return (
                     <Link
                       key={item.id}
