@@ -207,7 +207,7 @@ export default function SettingsPage() {
                               borderRadius: "8px",
                             }}
                             labelFormatter={(label) => `Day ${label}`}
-                            formatter={(value: number) => [`${value} scans`, "Scans"]}
+                            formatter={(value: number | undefined) => [`${value ?? 0} scans`, "Scans"]}
                           />
                           <Bar
                             dataKey="scans"
