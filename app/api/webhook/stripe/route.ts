@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
           // Get subscription details
           const subscription = await stripe.subscriptions.retrieve(
             session.subscription as string
-          ) as Stripe.Subscription;
+          );
 
           // Update user's subscription in database
           const { error } = await supabase
@@ -76,13 +76,13 @@ export async function POST(req: NextRequest) {
               status: subscription.status,
               plan: session.metadata?.plan || 'unknown',
               billing_period: session.metadata?.billingPeriod || 'monthly',
-              current_period_start: subscription.current_period_start 
-                ? new Date(subscription.current_period_start * 1000).toISOString()
+              current_period_start: (subscription as any).current_period_start 
+                ? new Date((subscription as any).current_period_start * 1000).toISOString()
                 : null,
-              current_period_end: subscription.current_period_end
-                ? new Date(subscription.current_period_end * 1000).toISOString()
+              current_period_end: (subscription as any).current_period_end
+                ? new Date((subscription as any).current_period_end * 1000).toISOString()
                 : null,
-              cancel_at_period_end: subscription.cancel_at_period_end || false,
+              cancel_at_period_end: (subscription as any).cancel_at_period_end || false,
               updated_at: new Date().toISOString(),
             }, {
               onConflict: 'user_id',
