@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
 
     if (!subscriptionRecord) {
       // Create free subscription record
+      const supabase = createServerSupabaseClient();
       const { data: newSub, error: createError } = await supabase
         .from('user_subscriptions')
         .insert({
@@ -83,6 +84,7 @@ export async function POST(req: NextRequest) {
       scansRemaining = getScanLimit(plan);
       const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
       
+      const supabase = createServerSupabaseClient();
       const { error: resetError } = await supabase
         .from('user_subscriptions')
         .update({
@@ -109,6 +111,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Decrement scans
+    const supabase = createServerSupabaseClient();
     const { data: updated, error: updateError } = await supabase
       .from('user_subscriptions')
       .update({
