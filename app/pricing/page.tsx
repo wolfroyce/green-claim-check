@@ -240,7 +240,7 @@ export default function PricingPage() {
 
                     {/* Features */}
                     <ul className="space-y-4 mb-8 min-h-[200px]">
-                      {plan.features.map((feature, fIdx) => (
+                      {plan.features.map((feature: string, fIdx) => (
                         <li key={fIdx} className="flex items-start gap-3">
                           <CheckCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
                             plan.highlight ? "text-primary" : "text-success"
