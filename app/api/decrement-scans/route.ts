@@ -71,6 +71,14 @@ export async function POST(req: NextRequest) {
       subscriptionRecord = newSub;
     }
 
+    // Ensure subscriptionRecord exists
+    if (!subscriptionRecord) {
+      return NextResponse.json(
+        { error: 'Failed to get or create subscription' },
+        { status: 500 }
+      );
+    }
+
     // Check if we need to reset (new month)
     const now = new Date();
     const resetDate = subscriptionRecord.scans_reset_date
